@@ -1,0 +1,31 @@
+# --- Never commit: personal data, logins, secrets -----------------------------
+# Everything the scraper writes: posts, comments, reactions, logs, settings,
+# the encrypted login vault, the temporary login browser profile
+data/
+# Your settings and HASH_SALT
+.env
+# Login sessions / cookies in any form
+*.enc
+state.json
+cookies*.json
+cookies*.txt
+login-profile/
+*.bak
+
+# --- Local environment and caches ----------------------------------------------
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+*.log
+*.tmp
+
+# --- Editor / tool folders -----------------------------------------------------
+.omc/
+.claude/
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db

@@ -1,0 +1,1519 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Scraper Dashboard</title>
+<style>
+  /* Chart colors: validated categorical palette, slots used in this order.
+     Light and dark are separate, selected steps, not an automatic flip. */
+  :root {
+    color-scheme: light;
+    --bg: #f3f3f0;
+    --surface: #fcfcfb;
+    --surface-2: #f6f6f3;
+    --border: #e3e2dc;
+    --grid: #ebeae5;
+    --text-primary: #0b0b0b;
+    --text-secondary: #52514e;
+    --text-muted: #85847f;
+    --c1: #2a78d6; --c2: #eb6834; --c3: #1baf7a; --c4: #eda100;
+    --c5: #e87ba4; --c6: #008300; --c7: #4a3aa7; --c8: #e34948;
+    --good: #1e8a3c; --warning: #b07800; --critical: #d03b3b;
+    --track: #e7e6e1;
+    --unknown: #b9b8b2;
+    --shadow: 0 1px 2px rgba(20, 20, 18, .05), 0 6px 20px rgba(20, 20, 18, .05);
+    --mono: ui-monospace, "Cascadia Code", Consolas, monospace;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      color-scheme: dark;
+      --bg: #111110; --surface: #1a1a19; --surface-2: #20201e; --border: #2e2e2b; --grid: #282826;
+      --text-primary: #ffffff; --text-secondary: #c3c2b7; --text-muted: #8d8c85;
+      --c1: #3987e5; --c2: #d95926; --c3: #199e70; --c4: #c98500;
+      --c5: #d55181; --c6: #008300; --c7: #9085e9; --c8: #e66767;
+      --good: #3fae5c; --warning: #d9a21b; --critical: #e66767; --track: #2c2c2a; --unknown: #5c5b57;
+      --shadow: 0 1px 2px rgba(0, 0, 0, .3), 0 8px 24px rgba(0, 0, 0, .25);
+    }
+  }
+  :root[data-theme="dark"] {
+    color-scheme: dark;
+    --bg: #111110; --surface: #1a1a19; --surface-2: #20201e; --border: #2e2e2b; --grid: #282826;
+    --text-primary: #ffffff; --text-secondary: #c3c2b7; --text-muted: #8d8c85;
+    --c1: #3987e5; --c2: #d95926; --c3: #199e70; --c4: #c98500;
+    --c5: #d55181; --c6: #008300; --c7: #9085e9; --c8: #e66767;
+    --good: #3fae5c; --warning: #d9a21b; --critical: #e66767; --track: #2c2c2a; --unknown: #5c5b57;
+    --shadow: 0 1px 2px rgba(0, 0, 0, .3), 0 8px 24px rgba(0, 0, 0, .25);
+  }
+
+  * { box-sizing: border-box; }
+  [hidden] { display: none !important; }  /* buttons set display, which would override it */
+  body {
+    margin: 0; color: var(--text-primary);
+    font: 14px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    background:
+      radial-gradient(900px 420px at 0% -10%, color-mix(in srgb, var(--c1) 10%, transparent), transparent 70%),
+      radial-gradient(800px 380px at 100% -10%, color-mix(in srgb, var(--c5) 9%, transparent), transparent 70%),
+      var(--bg);
+    background-attachment: fixed;
+    min-height: 100vh;
+  }
+  .wrap { max-width: 1200px; margin: 0 auto; padding: 0 16px; }
+  @media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
+
+  /* Header */
+  .topbar {
+    position: sticky; top: 0; z-index: 5;
+    background: color-mix(in srgb, var(--surface) 86%, transparent);
+    backdrop-filter: blur(10px); border-bottom: 1px solid var(--border);
+  }
+  .topbar::before {
+    content: ""; display: block; height: 3px;
+    background: linear-gradient(90deg, var(--c1), var(--c7), var(--c5), var(--c2), var(--c4), var(--c3));
+  }
+  .topbar .wrap { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 16px; padding-top: 12px; padding-bottom: 0; }
+  .brand { display: flex; align-items: center; gap: 10px; min-width: 0; flex: 1; }
+  .logo {
+    width: 34px; height: 34px; border-radius: 10px; flex: none; display: grid; place-items: center; color: #fff;
+    background: linear-gradient(135deg, var(--c1), var(--c7));
+    box-shadow: 0 4px 14px color-mix(in srgb, var(--c1) 35%, transparent);
+  }
+  .brand h1 { font-size: 17px; margin: 0; font-weight: 700; line-height: 1.2; }
+  .group-sel { width: auto; max-width: min(60vw, 420px); padding: 2px 26px 2px 8px; margin-top: 3px; font-size: 12.5px;
+    border-radius: 8px; color: var(--text-secondary); background-color: var(--surface-2); }
+  textarea { font: 13px/1.5 var(--mono); padding: 8px 10px; border: 1px solid var(--border); border-radius: 10px;
+    background: var(--surface); color: var(--text-primary); width: 100%; min-height: 96px; resize: vertical; }
+  .run-group { color: var(--text-secondary); font-size: 13px; margin: -6px 0 12px; }
+  .run-group strong { color: var(--text-primary); }
+  .target { color: var(--text-muted); font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 60vw; }
+  .actions { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+
+  .pill {
+    display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px;
+    border: 1px solid var(--border); border-radius: 999px; background: var(--surface);
+    font-size: 12.5px; font-weight: 600; white-space: nowrap;
+  }
+  .pill .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--text-muted); }
+  .pill[data-state="running"] .dot, .pill[data-state="starting"] .dot { background: var(--c1); animation: pulse 1.2s infinite; }
+  .pill[data-state="done"] .dot { background: var(--good); }
+  .pill[data-state="resting"] .dot { background: var(--c7); }
+  .stop-btn { color: var(--critical); border-color: color-mix(in srgb, var(--critical) 45%, var(--border)); }
+  .pill[data-state="blocked"] .dot { background: var(--warning); }
+  .pill[data-state="error"] .dot { background: var(--critical); }
+  .chip-safe { border-color: color-mix(in srgb, var(--c3) 50%, var(--border)); color: var(--c3); }
+  .chip-safe[hidden] { display: none; }
+  .icon-btn { padding: 7px 10px; }
+  .icon-btn svg { width: 17px; height: 17px; }
+  @keyframes pulse { 50% { opacity: .3; } }
+
+  button, .btn {
+    font: inherit; font-weight: 600; padding: 8px 16px; border-radius: 10px; cursor: pointer;
+    border: 1px solid transparent; color: #fff; display: inline-flex; align-items: center; gap: 6px;
+    background: linear-gradient(135deg, var(--c1), color-mix(in srgb, var(--c1) 70%, var(--c7)));
+    box-shadow: 0 2px 10px color-mix(in srgb, var(--c1) 30%, transparent);
+    transition: transform .15s, box-shadow .15s, opacity .15s;
+  }
+  button:hover:not(:disabled) { transform: translateY(-1px); box-shadow: 0 4px 16px color-mix(in srgb, var(--c1) 40%, transparent); }
+  button:disabled { opacity: .45; cursor: not-allowed; box-shadow: none; }
+  button.secondary { background: var(--surface); color: var(--text-primary); border-color: var(--border); box-shadow: none; }
+  button.linkish { background: none; border: none; box-shadow: none; color: var(--c1); padding: 0; }
+  button:focus-visible, input:focus-visible, select:focus-visible, [role="tab"]:focus-visible, summary:focus-visible {
+    outline: 2px solid var(--c1); outline-offset: 2px;
+  }
+
+  /* Tabs */
+  .tabs { display: flex; gap: 2px; overflow-x: auto; scrollbar-width: none; margin-top: 4px; width: 100%; }
+  .tabs::-webkit-scrollbar { display: none; }
+  [role="tab"] {
+    background: none; box-shadow: none; color: var(--text-secondary); border: none; border-radius: 0;
+    padding: 10px 14px; font-weight: 600; position: relative; white-space: nowrap;
+  }
+  [role="tab"]:hover:not(:disabled) { transform: none; box-shadow: none; color: var(--text-primary); }
+  [role="tab"][aria-selected="true"] { color: var(--text-primary); }
+  [role="tab"][aria-selected="true"]::after {
+    content: ""; position: absolute; left: 10px; right: 10px; bottom: 0; height: 3px; border-radius: 3px 3px 0 0;
+    background: linear-gradient(90deg, var(--c1), var(--c7));
+  }
+  [role="tab"] svg { width: 16px; height: 16px; vertical-align: -3px; margin-right: 6px; opacity: .85; }
+  .tab-badge { font-size: 11px; color: var(--text-muted); font-weight: 500; margin-left: 4px; }
+
+  main { padding-top: 18px; padding-bottom: 48px; }
+  [role="tabpanel"][hidden] { display: none; }
+  [role="tabpanel"] { animation: fade .25s ease; }
+  @keyframes fade { from { opacity: 0; transform: translateY(4px); } }
+
+  .card {
+    background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 16px 18px;
+    box-shadow: var(--shadow); min-width: 0;
+  }
+  .card h2 { font-size: 14px; font-weight: 650; margin: 0 0 2px; }
+  .card .sub { color: var(--text-muted); font-size: 12.5px; margin: 0 0 14px; }
+  .grid { display: grid; gap: 14px; margin-bottom: 14px; }
+  .g2 { grid-template-columns: 1fr 1fr; }
+  .g-wide { grid-template-columns: 1.4fr 1fr; }
+  @media (max-width: 860px) { .g2, .g-wide { grid-template-columns: 1fr; } }
+  .empty { color: var(--text-muted); padding: 28px 0; text-align: center; }
+  .notice { color: var(--text-secondary); font-size: 13px; min-height: 1em; margin: 0; }
+
+  /* KPI tiles */
+  .kpis { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; margin-bottom: 14px; }
+  .kpis.eight { grid-template-columns: repeat(4, 1fr); }
+  @media (max-width: 600px) { .kpis, .kpis.eight { grid-template-columns: repeat(2, 1fr); } .kpis > :last-child:nth-child(odd) { grid-column: 1 / -1; } }
+  .run-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px 24px; margin-bottom: 16px; }
+  @media (max-width: 600px) { .run-row { grid-template-columns: 1fr; } }
+  .run-row .label { color: var(--text-secondary); font-size: 12.5px; }
+  .run-row .value { font-size: 22px; font-weight: 750; font-variant-numeric: tabular-nums; }
+  .run-row .value small { font-size: 13px; color: var(--text-muted); font-weight: 500; }
+  .kpi { position: relative; overflow: hidden; transition: transform .2s, box-shadow .2s; }
+  .kpi:hover { transform: translateY(-2px); }
+  .kpi::after {
+    content: ""; position: absolute; right: -30px; top: -30px; width: 110px; height: 110px; border-radius: 50%;
+    background: radial-gradient(circle, color-mix(in srgb, var(--accent) 18%, transparent), transparent 70%);
+  }
+  .kpi .icon {
+    width: 32px; height: 32px; border-radius: 9px; display: grid; place-items: center; margin-bottom: 10px;
+    background: color-mix(in srgb, var(--accent) 16%, transparent); color: var(--accent);
+  }
+  .kpi .icon svg { width: 17px; height: 17px; }
+  .kpi .value { font-size: 28px; font-weight: 750; font-variant-numeric: tabular-nums; line-height: 1.1; letter-spacing: -.01em; }
+  .kpi .value small { font-size: 14px; color: var(--text-muted); font-weight: 500; }
+  .kpi .label { color: var(--text-secondary); font-size: 12.5px; margin-top: 2px; }
+  .kpi .delta { color: var(--good); font-size: 12px; font-weight: 600; min-height: 1em; }
+  .progress { height: 7px; border-radius: 4px; background: var(--track); margin-top: 10px; overflow: hidden; }
+  .progress > div { height: 100%; border-radius: 4px; transition: width .5s ease; background: linear-gradient(90deg, var(--accent), color-mix(in srgb, var(--accent) 60%, var(--c7))); }
+
+  /* Alert */
+  .alert {
+    display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; margin-bottom: 14px;
+    padding: 12px 16px; border-radius: 14px; border: 1px solid var(--critical);
+    background: color-mix(in srgb, var(--critical) 10%, var(--surface)); box-shadow: var(--shadow);
+  }
+  .alert[hidden] { display: none; }
+  .alert strong { color: var(--critical); }
+  .alert .alert-text { flex: 1; min-width: 220px; }
+
+  /* Overview */
+  .hero { display: flex; flex-wrap: wrap; gap: 16px 28px; align-items: center; }
+  .hero .big { font-size: 22px; font-weight: 750; }
+  .hero .meta { color: var(--text-secondary); font-size: 13px; }
+  .mini-log { font: 12px/1.6 var(--mono); color: var(--text-secondary); white-space: pre-wrap; word-break: break-word; margin: 0; max-height: 210px; overflow: auto; }
+  .card-head { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; margin-bottom: 10px; }
+  .card-head h2 { margin: 0; }
+
+  /* SVG charts */
+  svg.chart { width: 100%; display: block; }
+  svg.chart text { fill: var(--text-muted); font-size: 11px; }
+  svg.chart .gridline { stroke: var(--grid); }
+
+  /* Bars */
+  .bars { display: grid; gap: 8px; }
+  .bar-row { display: grid; grid-template-columns: minmax(80px, 34%) 1fr minmax(40px, auto); align-items: center; gap: 10px; }
+  .bar-row .name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .bar-row .track { height: 14px; }
+  .bar-row .fill { height: 100%; border-radius: 0 4px 4px 0; transition: width .6s cubic-bezier(.2,.8,.2,1); }
+  .bar-row .num { text-align: right; color: var(--text-secondary); font-variant-numeric: tabular-nums; }
+
+  /* Donut */
+  .donut-wrap { display: grid; grid-template-columns: minmax(160px, 220px) 1fr; gap: 20px; align-items: center; }
+  @media (max-width: 520px) { .donut-wrap { grid-template-columns: 1fr; justify-items: center; } }
+  #donut { max-width: 240px; }
+  .legend { display: grid; gap: 7px; width: 100%; }
+  .legend-row { display: grid; grid-template-columns: 12px 1fr auto auto; gap: 10px; align-items: center; font-size: 13px; }
+  .swatch { width: 12px; height: 12px; border-radius: 3px; }
+  .legend-row .v { font-variant-numeric: tabular-nums; font-weight: 600; }
+  .legend-row .p { color: var(--text-muted); font-variant-numeric: tabular-nums; min-width: 42px; text-align: right; }
+
+  /* Stacked bars (top posts) */
+  .stack-list { display: grid; gap: 14px; }
+  .stack-item, .bar-row > *, .post, .legend-row > * { min-width: 0; }
+  .stack-item .title { font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; margin-bottom: 5px; }
+  .stack-item .title span { color: var(--text-muted); }
+  .stack-line { display: flex; align-items: center; gap: 10px; }
+  .stack { display: flex; gap: 2px; height: 16px; }
+  .stack > div { height: 100%; min-width: 3px; }
+  .stack > div:first-child { border-radius: 4px 0 0 4px; }
+  .stack > div:last-child { border-radius: 0 4px 4px 0; }
+  .stack > div:only-child { border-radius: 4px; }
+  .stack-line .num { font-variant-numeric: tabular-nums; color: var(--text-secondary); font-size: 13px; white-space: nowrap; }
+  .key { display: flex; flex-wrap: wrap; gap: 6px 14px; margin-bottom: 14px; font-size: 12.5px; color: var(--text-secondary); }
+  .key span { display: inline-flex; align-items: center; gap: 6px; }
+
+  /* Column histogram */
+  .cols { display: flex; align-items: flex-end; gap: 8px; height: 170px; padding-top: 18px; }
+  .col { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; height: 100%; min-width: 0; }
+  .col .barbox { flex: 1; width: 100%; display: flex; align-items: flex-end; justify-content: center; min-height: 0; }
+  .col .bar { width: 100%; max-width: 54px; border-radius: 6px 6px 0 0; transition: height .6s cubic-bezier(.2,.8,.2,1); }
+  .col .val { font-size: 11.5px; color: var(--text-secondary); margin-bottom: 4px; font-variant-numeric: tabular-nums; }
+  .col .lbl { font-size: 11.5px; color: var(--text-muted); margin-top: 6px; white-space: nowrap; }
+
+  /* Heatmap */
+  .heat { display: grid; grid-template-columns: 34px repeat(24, minmax(0, 1fr)); gap: 3px; font-size: 10.5px; color: var(--text-muted); }
+  .heat .cell { aspect-ratio: 1; border-radius: 4px; background: var(--track); transition: transform .15s; }
+  .heat .cell:hover { transform: scale(1.25); position: relative; z-index: 1; }
+  .heat .hl { text-align: center; }
+  .heat .dl { display: flex; align-items: center; }
+  .ramp { display: flex; align-items: center; gap: 4px; justify-content: flex-end; margin-top: 10px; font-size: 11.5px; color: var(--text-muted); }
+  .ramp i { width: 14px; height: 14px; border-radius: 3px; display: inline-block; }
+
+  /* Posts tab */
+  .toolbar { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin-bottom: 14px; }
+  .search { flex: 1; min-width: 200px; position: relative; }
+  .search svg { position: absolute; left: 11px; top: 50%; transform: translateY(-50%); width: 16px; height: 16px; color: var(--text-muted); }
+  input[type=text], input[type=search], input[type=number], input[type=password], select {
+    font: inherit; padding: 8px 10px; border: 1px solid var(--border); border-radius: 10px;
+    background: var(--surface); color: var(--text-primary); width: 100%; min-width: 0;
+  }
+  .search input { padding-left: 34px; }
+  .toolbar select { width: auto; }
+  .count { color: var(--text-muted); font-size: 13px; }
+  .post-list { display: grid; gap: 12px; }
+  .post { border-left: 4px solid var(--accent, var(--c1)); }
+  .post-head { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 12px; font-size: 12.5px; color: var(--text-muted); margin-bottom: 8px; }
+  .updated-tag { font-size: 11.5px; color: var(--c3); font-weight: 600; }
+  .author-chip { font-family: var(--mono); font-size: 11.5px; padding: 2px 8px; border-radius: 999px; background: var(--surface-2); border: 1px solid var(--border); color: var(--text-secondary); }
+  .post-text { white-space: pre-line; word-break: break-word; }
+  .post-text.clamp { display: -webkit-box; -webkit-line-clamp: 5; -webkit-box-orient: vertical; overflow: hidden; }
+  .post-foot { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px; margin-top: 12px; }
+  .rx-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+  .rx-chip { display: inline-flex; align-items: center; gap: 5px; font-size: 12px; padding: 2px 8px; border-radius: 999px; background: var(--surface-2); border: 1px solid var(--border); }
+  .rx-chip i { width: 9px; height: 9px; border-radius: 50%; display: inline-block; }
+  .stat { font-size: 12.5px; color: var(--text-secondary); display: inline-flex; align-items: center; gap: 5px; }
+  .stat svg { width: 14px; height: 14px; }
+  details.comments { margin-top: 10px; }
+  details.comments summary { cursor: pointer; color: var(--c1); font-size: 13px; font-weight: 600; }
+  .comment { padding: 8px 12px; margin-top: 8px; border-radius: 10px; background: var(--surface-2); border: 1px solid var(--border); }
+  .comment .author-chip { margin-right: 6px; }
+  .more-row { text-align: center; margin-top: 14px; }
+
+  /* Settings */
+  .settings-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 14px; }
+  fieldset { border: 1px solid var(--border); border-radius: 12px; padding: 12px 14px 4px; margin: 0; min-width: 0; background: var(--surface-2); }
+  legend { font-size: 12px; font-weight: 700; padding: 0 6px; text-transform: uppercase; letter-spacing: .04em; color: var(--text-muted); }
+  .field { display: grid; gap: 4px; margin-bottom: 12px; }
+  .field > label { font-size: 13px; color: var(--text-secondary); }
+  .field.check { display: flex; align-items: flex-start; gap: 9px; }
+  .field.check input { width: 17px; height: 17px; margin: 1px 0 0; accent-color: var(--c1); flex: none; }
+  .field.check label { color: var(--text-primary); }
+  .field input:disabled, .field select:disabled { opacity: .5; }
+  .field.check input:disabled + label { opacity: .5; }
+  .field .err { color: var(--critical); font-size: 12px; }
+  .field .err:empty, .field .note:empty { display: none; }
+  .field .note { color: var(--c3); font-size: 12px; font-weight: 600; }
+  .field.invalid input, .field.invalid select { border-color: var(--critical); }
+  .settings-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin-top: 4px; }
+
+  /* Log */
+  .log-box {
+    margin: 0; height: min(62vh, 640px); overflow: auto; font: 12.5px/1.65 var(--mono);
+    white-space: pre-wrap; word-break: break-word; background: var(--surface-2);
+    border: 1px solid var(--border); border-radius: 10px; padding: 10px 12px;
+  }
+  .log-box .l-err { color: var(--critical); font-weight: 600; }
+  .log-box .l-warn { color: var(--warning); font-weight: 600; }
+  .log-box .l-ok { color: var(--good); }
+  .log-box .l-scroll { color: var(--text-secondary); }
+  .log-box .l-dim { color: var(--text-muted); }
+  .switch { display: inline-flex; align-items: center; gap: 7px; font-size: 13px; color: var(--text-secondary); white-space: nowrap; }
+  .switch input { accent-color: var(--c1); width: 16px; height: 16px; }
+
+  #tip {
+    position: fixed; pointer-events: none; z-index: 20; display: none; max-width: 280px;
+    background: var(--surface); border: 1px solid var(--border); border-radius: 10px;
+    padding: 7px 11px; font-size: 12.5px; box-shadow: var(--shadow); color: var(--text-secondary);
+  }
+  #tip strong { font-size: 15px; color: var(--text-primary); margin-right: 4px; }
+  #tip .tkey { display: inline-block; width: 12px; height: 3px; border-radius: 2px; vertical-align: middle; margin-right: 6px; }
+  .tab-dot { display: inline-block; width: 7px; height: 7px; border-radius: 50%; background: var(--warning); margin-left: 6px; vertical-align: 2px; }
+  .alert-info { border-color: var(--warning); background: color-mix(in srgb, var(--warning) 10%, var(--surface)); }
+  .alert-info strong { color: var(--warning); }
+  .acct-status { display: flex; align-items: center; gap: 14px; }
+  .acct-status h2 { margin: 0; }
+  .acct-icon { width: 40px; height: 40px; border-radius: 12px; display: grid; place-items: center; flex: none;
+    background: color-mix(in srgb, var(--accent, var(--text-muted)) 16%, transparent); color: var(--accent, var(--text-muted)); }
+  .acct-icon svg { width: 22px; height: 22px; }
+  .pass-grid, .cookie-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0 14px; }
+  @media (max-width: 600px) { .pass-grid, .cookie-grid { grid-template-columns: 1fr; } }
+  .hint { color: var(--text-muted); font-size: 12.5px; margin: 0 0 10px; }
+  .req { color: var(--critical); font-size: 11px; font-weight: 600; margin-left: 4px; }
+  .login-status { margin: 10px 0 0; font-size: 13px; font-weight: 600; min-height: 1.2em; }
+  .login-status.waiting { color: var(--c1); }
+  .login-status.done { color: var(--good); }
+  .login-status.error { color: var(--critical); }
+  .paste-all summary { cursor: pointer; color: var(--c1); font-size: 13px; font-weight: 600; margin-bottom: 4px; }
+  code { font-family: var(--mono); font-size: 12px; }
+  .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+</style>
+</head>
+<body>
+<header class="topbar">
+  <div class="wrap">
+    <div class="brand">
+      <div class="logo" aria-hidden="true">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M4 19V9M10 19V5M16 19v-7M22 19H2"/></svg>
+      </div>
+      <div style="min-width:0">
+        <h1>Group Scraper</h1>
+        <label class="sr-only" for="groupSel">Group</label>
+        <select id="groupSel" class="group-sel" title="Group shown here and scraped by Start scrape"></select>
+      </div>
+    </div>
+    <div class="actions">
+      <span class="pill chip-safe" id="safeChip" hidden title="Low-risk mode is on: small, slow runs without extra clicks. Change it in Settings → Safety.">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" aria-hidden="true"><path d="M12 3l8 3v6c0 4.5-3.4 8.2-8 9-4.6-.8-8-4.5-8-9V6z"/></svg>Low-risk mode</span>
+      <button type="button" class="secondary icon-btn" id="themeBtn" title="Color theme" aria-label="Color theme: auto"></button>
+      <span class="pill" id="pill" data-state="idle"><span class="dot"></span><span id="stateLabel">Idle</span></span>
+      <button type="button" class="secondary stop-btn" id="stopBtn" hidden>
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><rect x="5" y="5" width="14" height="14" rx="2"/></svg>
+        Stop</button>
+      <button id="runBtn">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M7 4.5v15l12.5-7.5z"/></svg>
+        Start scrape
+      </button>
+    </div>
+    <nav class="tabs" role="tablist" aria-label="Dashboard sections">
+      <button role="tab" id="tab-overview" aria-controls="panel-overview" data-tab="overview">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/></svg>Overview</button>
+      <button role="tab" id="tab-posts" aria-controls="panel-posts" data-tab="posts">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 5h16M4 10h16M4 15h10M4 20h7"/></svg>Posts<span class="tab-badge" id="postsBadge"></span></button>
+      <button role="tab" id="tab-analytics" aria-controls="panel-analytics" data-tab="analytics">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12a9 9 0 1 1-9-9v9z"/><path d="M15 3.5A9 9 0 0 1 20.5 9H15z"/></svg>Analytics</button>
+      <button role="tab" id="tab-settings" aria-controls="panel-settings" data-tab="settings">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 6h10M18 6h2M4 12h4M12 12h8M4 18h12M20 18h0"/><circle cx="16" cy="6" r="2"/><circle cx="10" cy="12" r="2"/><circle cx="18" cy="18" r="2"/></svg>Settings</button>
+      <button role="tab" id="tab-log" aria-controls="panel-log" data-tab="log">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 4h14v16H5z"/><path d="M8 8h8M8 12h8M8 16h5"/></svg>Log</button>
+      <button role="tab" id="tab-account" aria-controls="panel-account" data-tab="account">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="4"/><path d="M4 21c1-4 4.5-6 8-6s7 2 8 6"/></svg>Account<span class="tab-dot" id="accountDot" hidden></span></button>
+    </nav>
+  </div>
+</header>
+
+<main class="wrap">
+  <div class="alert" id="checkpointAlert" role="alert" hidden>
+    <span class="alert-text"><strong>⚠ Facebook showed a checkpoint</strong> <span id="checkpointWhen"></span>.
+      Stop for today: running again soon is the fastest way to get the account locked.
+      <span id="checkpointMsg" class="notice"></span></span>
+    <button type="button" class="secondary" data-goto="account">Log in again</button>
+    <button type="button" class="secondary" id="checkpointAck">I understand</button>
+  </div>
+  <div class="alert alert-info" id="loginAlert" role="status" hidden>
+    <span class="alert-text"><strong id="loginAlertTitle">No saved Facebook login</strong>
+      <span id="loginAlertText">Log in before scraping.</span></span>
+    <button type="button" data-goto="account">Open Account</button>
+  </div>
+
+  <!-- ============ OVERVIEW ============ -->
+  <section role="tabpanel" id="panel-overview" aria-labelledby="tab-overview">
+    <div class="card" style="margin-bottom:14px">
+      <div class="hero">
+        <div>
+          <div class="big" id="heroState">Ready</div>
+          <p class="notice" id="notice"></p>
+        </div>
+      </div>
+    </div>
+
+    <div class="kpis">
+      <div class="card kpi" style="--accent: var(--c1)">
+        <div class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 5h16M4 10h16M4 15h10"/></svg></div>
+        <div class="value" id="kPosts">0</div><div class="label">Posts saved</div>
+      </div>
+      <div class="card kpi" style="--accent: var(--c3)">
+        <div class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12a8 8 0 0 1-11.5 7.2L4 20l1-4.5A8 8 0 1 1 21 12z"/></svg></div>
+        <div class="value" id="kComments">0</div><div class="label">Comments saved</div>
+      </div>
+      <div class="card kpi" style="--accent: var(--c5)">
+        <div class="icon"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 21s-7.5-4.6-9.6-9.2C.9 8.4 3 5 6.4 5c2 0 3.5 1.2 4.3 2.6h2.6C14.1 6.2 15.6 5 17.6 5 21 5 23.1 8.4 21.6 11.8 19.5 16.4 12 21 12 21z"/></svg></div>
+        <div class="value" id="kReactions">0</div><div class="label">Reactions counted</div>
+      </div>
+    </div>
+
+    <div class="grid g-wide">
+      <div class="card">
+        <h2>This run</h2>
+        <p class="sub">Progress and new posts found on each scroll</p>
+        <p class="run-group" id="runGroup" hidden></p>
+        <div class="run-row">
+          <div style="--accent: var(--c7)">
+            <div class="label">New posts</div>
+            <div class="value"><span id="kRun">0</span> <small id="kRunMax">/ 0</small></div>
+            <div class="progress"><div id="pRun" style="width:0"></div></div>
+          </div>
+          <div style="--accent: var(--c2)">
+            <div class="label">Scrolls</div>
+            <div class="value"><span id="kScroll">0</span> <small id="kScrollMax">/ 0</small></div>
+            <div class="progress"><div id="pScroll" style="width:0"></div></div>
+          </div>
+          <div style="--accent: var(--c3)" title="JavaScript memory of the scraping tab. The tab is reopened when it passes the limit in Settings → Performance.">
+            <div class="label">Page memory</div>
+            <div class="value"><span id="kMem">–</span> <small id="kMemMax"></small></div>
+            <div class="progress"><div id="pMem" style="width:0"></div></div>
+          </div>
+        </div>
+        <svg class="chart" id="scrollChart" height="220" role="img" aria-label="New posts found on each scroll"></svg>
+      </div>
+      <div class="card">
+        <div class="card-head"><h2>Latest log</h2><button class="linkish" data-goto="log">Open full log →</button></div>
+        <pre class="mini-log" id="miniLog">No log yet</pre>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-head"><h2>Latest posts</h2><button class="linkish" data-goto="posts">See all posts →</button></div>
+      <div class="post-list" id="recentPosts"></div>
+    </div>
+  </section>
+
+  <!-- ============ POSTS ============ -->
+  <section role="tabpanel" id="panel-posts" aria-labelledby="tab-posts" hidden>
+    <div class="toolbar">
+      <label class="search">
+        <span class="sr-only">Search posts and comments</span>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+        <input type="search" id="postSearch" placeholder="Search posts and comments…">
+      </label>
+      <label class="sr-only" for="postSort">Sort posts</label>
+      <select id="postSort">
+        <option value="newest">Newest scraped</option>
+        <option value="reactions">Most reactions</option>
+        <option value="comments">Most comments</option>
+        <option value="shares">Most shares</option>
+      </select>
+      <span class="count" id="postCount"></span>
+    </div>
+    <div class="post-list" id="postList"></div>
+    <div class="more-row"><button class="secondary" id="loadMore" hidden>Load more</button></div>
+  </section>
+
+  <!-- ============ ANALYTICS ============ -->
+  <section role="tabpanel" id="panel-analytics" aria-labelledby="tab-analytics" hidden>
+    <div class="kpis eight" id="aKpis"></div>
+
+    <div class="grid g2">
+      <div class="card">
+        <h2>Reaction mix</h2>
+        <p class="sub">All reactions on saved posts, by type</p>
+        <div class="donut-wrap">
+          <svg class="chart" id="donut" viewBox="0 0 220 220" role="img" aria-label="Reactions by type"></svg>
+          <div class="legend" id="donutLegend"></div>
+        </div>
+        <p class="notice" id="coverage" style="margin-top:14px"></p>
+      </div>
+      <div class="card">
+        <h2>Posts per day</h2>
+        <p class="sub">By when posts were published (from Facebook's time labels)</p>
+        <svg class="chart" id="perDay" height="250" role="img" aria-label="Posts published per day"></svg>
+      </div>
+    </div>
+
+    <div class="card" style="margin-bottom:14px">
+      <h2>When people post</h2>
+      <p class="sub" id="heatSub">Weekday × hour of day, for posts whose exact time is known</p>
+      <div id="heatmap"></div>
+    </div>
+
+    <div class="card" style="margin-bottom:14px">
+      <h2>Most-reacted posts</h2>
+      <p class="sub">Top 10, split by reaction type</p>
+      <div class="key" id="topKey"></div>
+      <div class="stack-list" id="topPosts"></div>
+    </div>
+
+    <div class="grid g2">
+      <div class="card">
+        <h2>Reactions per post</h2>
+        <p class="sub">How many posts fall in each range</p>
+        <div class="cols" id="reactionHist"></div>
+      </div>
+      <div class="card">
+        <h2>Comments per post</h2>
+        <p class="sub" id="commentHistSub">Facebook's own count for each post</p>
+        <div class="cols" id="commentHist"></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Top phrases</h2>
+      <p class="sub">Two-word phrases, counted once per post</p>
+      <div class="bars" id="phrases"></div>
+    </div>
+  </section>
+
+  <!-- ============ SETTINGS ============ -->
+  <section role="tabpanel" id="panel-settings" aria-labelledby="tab-settings" hidden>
+    <div class="card">
+      <h2>Settings</h2>
+      <p class="sub">Saved to data/settings.json and used from the next run. Clicking Start scrape saves unsaved changes first.</p>
+      <form id="settingsForm" novalidate>
+        <div class="settings-grid" id="settingsFields"></div>
+        <div class="settings-actions">
+          <button type="submit">Save settings</button>
+          <button type="button" class="secondary" id="resetSettings">Reset to .env defaults</button>
+          <span class="notice" id="settingsNotice"></span>
+        </div>
+      </form>
+    </div>
+  </section>
+
+  <!-- ============ ACCOUNT ============ -->
+  <section role="tabpanel" id="panel-account" aria-labelledby="tab-account" hidden>
+    <div class="card" style="margin-bottom:14px">
+      <div class="acct-status">
+        <span class="acct-icon" id="acctIcon" aria-hidden="true"></span>
+        <div>
+          <h2 id="acctTitle">Facebook login</h2>
+          <p class="notice" id="acctLine"></p>
+        </div>
+      </div>
+    </div>
+
+    <div class="card passphrase-card" id="passCard" style="margin-bottom:14px" hidden>
+      <h2 id="passTitle">Vault passphrase</h2>
+      <p class="sub" id="passSub"></p>
+      <div class="pass-grid">
+        <div class="field"><label for="passphrase">Passphrase</label>
+          <input type="password" id="passphrase" autocomplete="new-password" minlength="8"></div>
+        <div class="field" id="passConfirmField"><label for="passphraseConfirm">Repeat passphrase</label>
+          <input type="password" id="passphraseConfirm" autocomplete="new-password"></div>
+      </div>
+      <div class="settings-actions" id="unlockRow"><button type="button" id="unlockBtn">Unlock</button>
+        <span class="notice" id="unlockNotice"></span></div>
+    </div>
+
+    <div class="grid g2">
+      <div class="card">
+        <h2>Log in with a browser window</h2>
+        <p class="sub">Opens a normal Chrome/Edge window on Facebook's login page. Finish 2FA or any security
+          check there yourself; the dashboard notices when you're logged in and saves the session.</p>
+        <form id="loginForm" autocomplete="off">
+          <div class="field check" id="useSavedField" hidden>
+            <input type="checkbox" id="useSaved"><label for="useSaved">Fill in my saved email and password (<span id="savedEmail"></span>)</label>
+          </div>
+          <div id="credFields">
+            <div class="field"><label for="loginEmail">Email or phone (optional)</label>
+              <input type="text" id="loginEmail" autocomplete="off"></div>
+            <div class="field"><label for="loginPass">Password (optional)</label>
+              <input type="password" id="loginPass" autocomplete="off"></div>
+            <p class="hint">Leave both empty to type them in the login window yourself. Filled in here, they're typed
+              into the form for you.</p>
+            <div class="field check"><input type="checkbox" id="rememberCreds">
+              <label for="rememberCreds">Remember them in the encrypted vault</label></div>
+          </div>
+          <div class="settings-actions">
+            <button type="submit" id="loginBtn">Open login window</button>
+            <button type="button" class="secondary" id="cancelLogin" hidden>Cancel</button>
+          </div>
+          <p class="login-status" id="loginStatus" aria-live="polite"></p>
+        </form>
+        <p class="hint">If Meta's check page stays blank in that window, use cookies instead →</p>
+        <div class="settings-actions" id="forgetRow" hidden>
+          <button type="button" class="secondary" id="forgetBtn">Forget saved password</button>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>Paste cookies from a logged-in browser</h2>
+        <p class="sub">In a browser where Facebook works: F12 → <b>Application</b> (Chrome/Edge) or <b>Storage</b>
+          (Firefox) → Cookies → https://www.facebook.com, then copy the <b>Value</b> of each.</p>
+        <form id="cookieForm" autocomplete="off">
+          <div class="cookie-grid">
+            <div class="field"><label for="ck_c_user">c_user <span class="req">required</span></label>
+              <input type="text" id="ck_c_user" inputmode="numeric" autocomplete="off" spellcheck="false"></div>
+            <div class="field"><label for="ck_xs">xs <span class="req">required</span></label>
+              <input type="password" id="ck_xs" autocomplete="off" spellcheck="false"></div>
+            <div class="field"><label for="ck_datr">datr</label><input type="text" id="ck_datr" autocomplete="off" spellcheck="false"></div>
+            <div class="field"><label for="ck_fr">fr</label><input type="password" id="ck_fr" autocomplete="off" spellcheck="false"></div>
+            <div class="field"><label for="ck_sb">sb</label><input type="text" id="ck_sb" autocomplete="off" spellcheck="false"></div>
+          </div>
+          <details class="paste-all">
+            <summary>…or paste a whole cookie export</summary>
+            <div class="field" style="margin-top:8px">
+              <label for="cookieText">JSON from a cookie extension, a cookies.txt file, or <code>c_user=…; xs=…</code></label>
+              <textarea id="cookieText" spellcheck="false" rows="4"></textarea>
+            </div>
+          </details>
+          <div class="settings-actions">
+            <button type="submit">Save session</button>
+            <span class="notice" id="cookieNotice"></span>
+          </div>
+        </form>
+        <p class="hint">Afterwards close that tab but don't log out there: logging out ends this session too.
+          The values go straight into the encrypted vault and aren't kept anywhere else.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ LOG ============ -->
+  <section role="tabpanel" id="panel-log" aria-labelledby="tab-log" hidden>
+    <div class="card">
+      <div class="toolbar">
+        <label class="search">
+          <span class="sr-only">Filter log lines</span>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+          <input type="search" id="logFilter" placeholder="Filter log…">
+        </label>
+        <label class="switch"><input type="checkbox" id="logProblems"> Problems only</label>
+        <label class="switch"><input type="checkbox" id="logFollow" checked> Follow new lines</label>
+      </div>
+      <pre class="log-box" id="logBox">No log yet</pre>
+    </div>
+  </section>
+</main>
+<div id="tip"></div>
+
+<script>
+const $ = id => document.getElementById(id);
+const NS = "http://www.w3.org/2000/svg";
+const REDUCED = matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+const STATE_LABELS = { idle: "Idle", starting: "Starting…", running: "Running", resting: "Resting", done: "Finished", stopped: "Stopped", blocked: "Blocked by Facebook", error: "Error" };
+const HERO_TEXT = { idle: "Ready to scrape", starting: "Starting the browser…", running: "Scraping in progress", resting: "Resting between batches", done: "Last run finished", stopped: "Stopped", blocked: "Stopped by Facebook", error: "Last run hit an error" };
+
+// Reaction types keep the same color everywhere (palette slots 1-7, in order)
+const RX = [
+  ["like", "Like", "Thích", "--c1"], ["love", "Love", "Yêu thích", "--c2"], ["care", "Care", "Thương thương", "--c3"],
+  ["haha", "Haha", "Haha", "--c4"], ["wow", "Wow", "Wow", "--c5"], ["sad", "Sad", "Buồn", "--c6"], ["angry", "Angry", "Phẫn nộ", "--c7"],
+];
+const rxName = ([, en, vi]) => en === vi ? en : `${en} · ${vi}`;
+const css = v => `var(${v})`;
+const fmt = n => Number(n || 0).toLocaleString();
+const plural = (n, word) => `${fmt(n)} ${word}${Number(n) === 1 ? "" : "s"}`;
+
+function el(tag, attrs = {}, ...children) {
+  const n = document.createElement(tag);
+  for (const [k, v] of Object.entries(attrs)) {
+    if (k === "class") n.className = v;
+    else if (k === "style") n.style.cssText = v;
+    else if (k === "text") n.textContent = v;
+    else n.setAttribute(k, v);
+  }
+  for (const c of children) if (c != null) n.append(c);
+  return n;
+}
+function svgEl(parent, tag, attrs = {}) {
+  const n = document.createElementNS(NS, tag);
+  for (const [k, v] of Object.entries(attrs)) n.setAttribute(k, v);
+  parent.appendChild(n);
+  return n;
+}
+function postJSON(url, body) {
+  return fetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body || {}) });
+}
+const pct = (a, b) => b ? Math.min(100, (a / b) * 100) + "%" : "0";
+
+// ---------- tooltip ----------
+const tip = $("tip");
+function showTip(e, value, label, color) {
+  tip.replaceChildren();
+  if (color) tip.append(el("span", { class: "tkey", style: `background:${color}` }));
+  tip.append(el("strong", { text: value }), document.createTextNode(label));
+  tip.style.display = "block";
+  const x = Math.min(e.clientX + 14, innerWidth - tip.offsetWidth - 8);
+  const y = e.clientY - tip.offsetHeight - 12;
+  tip.style.left = x + "px";
+  tip.style.top = (y < 8 ? e.clientY + 18 : y) + "px";
+}
+function hideTip() { tip.style.display = "none"; }
+function hover(node, fn) {
+  node.addEventListener("pointermove", fn);
+  node.addEventListener("pointerleave", hideTip);
+}
+
+// Count-up for headline numbers
+function setNumber(node, value) {
+  const to = Number(value || 0), from = Number(node.dataset.v || 0);
+  node.dataset.v = to;
+  if (REDUCED || from === to || !node.isConnected) { node.textContent = fmt(to); return; }
+  const start = performance.now(), dur = 600;
+  const step = t => {
+    const k = Math.min(1, (t - start) / dur), e = 1 - Math.pow(1 - k, 3);
+    node.textContent = fmt(Math.round(from + (to - from) * e));
+    if (k < 1) requestAnimationFrame(step);
+  };
+  requestAnimationFrame(step);
+}
+
+// ---------- tabs ----------
+const TABS = ["overview", "posts", "analytics", "settings", "log", "account"];
+let currentTab = "overview";
+function showTab(name, focus) {
+  if (!TABS.includes(name)) name = "overview";
+  currentTab = name;
+  for (const t of TABS) {
+    const tab = $("tab-" + t), panel = $("panel-" + t), on = t === name;
+    tab.setAttribute("aria-selected", String(on));
+    tab.tabIndex = on ? 0 : -1;
+    panel.hidden = !on;
+  }
+  if (focus) $("tab-" + name).focus();
+  if (location.hash !== "#" + name) history.replaceState(null, "", "#" + name);
+  if (name === "posts") loadPosts(true);
+  if (name === "analytics") loadAnalytics();
+  if (name === "log") loadLog();
+  if (name === "account") loadAccount();
+  hideTip();
+}
+document.querySelectorAll('[role="tab"]').forEach(tab => {
+  tab.addEventListener("click", () => showTab(tab.dataset.tab));
+  tab.addEventListener("keydown", e => {
+    const i = TABS.indexOf(tab.dataset.tab);
+    if (e.key === "ArrowRight") showTab(TABS[(i + 1) % TABS.length], true);
+    else if (e.key === "ArrowLeft") showTab(TABS[(i + TABS.length - 1) % TABS.length], true);
+    else return;
+    e.preventDefault();
+  });
+});
+document.querySelectorAll("[data-goto]").forEach(b => b.addEventListener("click", () => showTab(b.dataset.goto)));
+addEventListener("hashchange", () => showTab(location.hash.slice(1)));
+
+// ---------- overview ----------
+function renderScrollChart(values) {
+  const svg = $("scrollChart");
+  const W = svg.clientWidth || 600, H = 220, pad = { l: 30, r: 6, t: 10, b: 22 };
+  svg.setAttribute("viewBox", `0 0 ${W} ${H}`);
+  svg.replaceChildren();
+  if (!values.length) {
+    svgEl(svg, "text", { x: W / 2, y: H / 2, "text-anchor": "middle" }).textContent = "Start a scrape to see progress here";
+    return;
+  }
+  const max = Math.max(4, ...values), step = Math.ceil(max / 4), top = step * 4;
+  const plotH = H - pad.t - pad.b, plotW = W - pad.l - pad.r;
+  const y = v => pad.t + plotH - (v / top) * plotH;
+  for (let v = 0; v <= top; v += step) {
+    svgEl(svg, "line", { class: "gridline", x1: pad.l, x2: W - pad.r, y1: y(v), y2: y(v) });
+    svgEl(svg, "text", { x: pad.l - 6, y: y(v) + 4, "text-anchor": "end" }).textContent = v;
+  }
+  const defs = svgEl(svg, "defs");
+  const g = svgEl(defs, "linearGradient", { id: "barGrad", x1: 0, x2: 0, y1: 0, y2: 1 });
+  svgEl(g, "stop", { offset: "0%", "stop-color": "var(--c1)" });
+  svgEl(g, "stop", { offset: "100%", "stop-color": "var(--c7)" });
+  const slot = plotW / values.length, gap = Math.max(2, slot * 0.22), bw = Math.max(2, slot - gap);
+  const every = Math.ceil(values.length / 12);
+  values.forEach((v, i) => {
+    const x = pad.l + i * slot + gap / 2, h = Math.max(v ? 2 : 0, y(0) - y(v)), r = Math.min(4, bw / 2, h);
+    const bar = svgEl(svg, "path", {
+      fill: "url(#barGrad)",
+      d: `M${x},${y(0)} V${y(0) - h + r} Q${x},${y(0) - h} ${x + r},${y(0) - h} H${x + bw - r} Q${x + bw},${y(0) - h} ${x + bw},${y(0) - h + r} V${y(0)} Z`,
+    });
+    const hit = svgEl(svg, "rect", { x: pad.l + i * slot, y: pad.t, width: slot, height: plotH, fill: "transparent" });
+    hover(hit, e => { bar.style.opacity = .75; showTip(e, v, `new posts on scroll ${i + 1}`); });
+    hit.addEventListener("pointerleave", () => { bar.style.opacity = 1; });
+    if ((i + 1) % every === 0 || i === 0) svgEl(svg, "text", { x: x + bw / 2, y: H - 6, "text-anchor": "middle" }).textContent = i + 1;
+  });
+}
+
+function colorLine(line) {
+  if (/error|crash|traceback|failed/i.test(line)) return "l-err";
+  if (/checkpoint|blocked|couldn't|stopped loading|wrong passphrase/i.test(line)) return "l-warn";
+  if (/saved \d+ new|reached max_posts|scraper started|scraper ended/i.test(line)) return "l-ok";
+  if (/scroll \d+\//i.test(line)) return "l-scroll";
+  return "l-dim";
+}
+function renderLogLines(box, lines) {
+  box.replaceChildren();
+  if (!lines.length) { box.textContent = "No log yet"; return; }
+  for (const line of lines) box.append(el("span", { class: colorLine(line), text: line + "\n" }));
+}
+
+let lastStats = null, notifiedCheckpoint = null, lastTotals = "";
+function activeCheckpoint(d) {
+  return d.checkpoint_alert && d.checkpoint && !d.checkpoint.acknowledged ? d.checkpoint : null;
+}
+function renderCheckpoint(d) {
+  const cp = activeCheckpoint(d);
+  $("checkpointAlert").hidden = !cp;
+  document.title = (cp ? "⚠ " : "") + "Scraper Dashboard";
+  if (!cp) return;
+  $("checkpointWhen").textContent = "at " + cp.at.replace("T", " ");
+  $("checkpointMsg").textContent = cp.message;
+  if (notifiedCheckpoint !== cp.at && "Notification" in window && Notification.permission === "granted") {
+    new Notification("Facebook showed a checkpoint", { body: "Scraping stopped. Take a break for today." });
+  }
+  notifiedCheckpoint = cp.at;
+}
+
+async function refreshStats() {
+  let d;
+  try { d = await (await fetch("/api/stats")).json(); }
+  catch { $("notice").textContent = "Can't reach the dashboard server — is it still running?"; return; }
+  lastStats = d;
+  renderCheckpoint(d);
+  const s = d.status || {};
+  const state = d.process_running && !["done", "blocked", "error", "stopped"].includes(s.state) ? (s.state || "starting") : (s.state || "idle");
+  $("pill").dataset.state = state;
+  $("stateLabel").textContent = STATE_LABELS[state] || state;
+  $("heroState").textContent = HERO_TEXT[state] || state;
+  renderGroups(d.groups);
+  // Say which group "This run" is about: it can differ from the one picked in the header
+  $("runGroup").hidden = !s.group;
+  if (s.group) {
+    const prefix = d.process_running
+      ? (s.groups_total > 1 ? `Group ${s.group_index}/${s.groups_total}: ` : "Scraping ")
+      : "Last run: ";
+    $("runGroup").replaceChildren(prefix, el("strong", { text: s.group }));
+  }
+  $("runBtn").lastChild.textContent = d.groups.scrape_all && d.groups.groups.length > 1
+    ? ` Scrape all ${d.groups.groups.length} groups` : " Start scrape";
+  const mem = s.memory_mb || 0, memMax = d.recycle_mb || 0;
+  $("kMem").textContent = mem ? fmt(mem) : "–";
+  $("kMemMax").textContent = mem ? (memMax ? `MB / ${fmt(memMax)}` : "MB") : "";
+  $("pMem").style.width = memMax ? pct(mem, memMax) : "0";
+  $("safeChip").hidden = !d.low_risk_mode;
+  $("runBtn").disabled = d.process_running || !d.has_session;
+  $("stopBtn").hidden = !d.process_running;
+  $("runBtn").hidden = d.process_running;
+  // Batch mode: show where the session is
+  if (s.batch_mode && d.process_running) {
+    const next = s.next_batch_at ? ` · next batch at ${new Date(s.next_batch_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}` : "";
+    $("heroState").textContent = `${HERO_TEXT[state] || state} · batch ${s.batch_index || 1} · ${fmt(s.session_new || 0)}/${fmt(s.batch_total)} new posts${next}`;
+  }
+  if (state === "resting" && s.message) $("notice").textContent = s.message;
+  renderLoginAlert(d);
+  if (!d.has_session) $("notice").textContent = "No saved login yet. Log in in the Account tab.";
+  else if (s.message && !d.process_running) $("notice").textContent = s.message;
+
+  setNumber($("kPosts"), d.total_posts);
+  setNumber($("kComments"), d.total_comments);
+  setNumber($("kReactions"), d.total_reactions);
+  $("kRun").textContent = s.run_new || 0;
+  $("kRunMax").textContent = "/ " + (s.max_posts || 0);
+  $("pRun").style.width = pct(s.run_new || 0, s.max_posts);
+  $("kScroll").textContent = s.scroll || 0;
+  $("kScrollMax").textContent = "/ " + (s.scroll_limit || 0);
+  $("pScroll").style.width = pct(s.scroll || 0, s.scroll_limit);
+  $("postsBadge").textContent = d.total_posts ? fmt(d.total_posts) : "";
+  renderScrollChart(s.per_scroll || []);
+  renderLogLines($("miniLog"), d.log || []);
+
+  // New data arrived: refresh whatever is on screen
+  const totals = `${d.total_posts}/${d.total_comments}/${d.total_reactions}`;
+  if (totals !== lastTotals) {
+    lastTotals = totals;
+    loadRecent();
+    if (currentTab === "posts" && !$("postSearch").value) loadPosts(true);
+    if (currentTab === "analytics") loadAnalytics();
+  }
+  if (currentTab === "log") loadLog();
+}
+
+// ---------- group picker ----------
+let groupsKey = "";
+function renderGroups(g) {
+  if (!g) return;
+  const sel = $("groupSel");
+  const key = JSON.stringify(g);
+  if (key === groupsKey) return;  // unchanged: don't disturb an open menu
+  groupsKey = key;
+  sel.replaceChildren();
+  for (const grp of g.groups) {
+    sel.append(el("option", { value: grp.slug, text: `${grp.slug} · ${fmt(grp.posts)} posts`, title: grp.url }));
+  }
+  sel.value = g.selected;
+  sel.title = (g.groups.find(x => x.slug === g.selected) || {}).url || "";
+}
+$("groupSel").addEventListener("change", async e => {
+  const settings = await (await fetch("/api/settings")).json();
+  const url = settings.values.GROUPS.find(u => slugOf(u) === e.target.value);
+  const body = await (await postJSON("/api/settings", { values: { SELECTED_GROUP: url } })).json();
+  if (!body.ok) { $("notice").textContent = body.message; return; }
+  renderSettings(body);
+  lastTotals = "";  // force every tab to reload for the new group
+  postOffset = 0;
+  await refreshStats();
+  if (currentTab === "posts") loadPosts(true);
+  if (currentTab === "analytics") loadAnalytics();
+});
+function slugOf(url) {
+  const m = /\/groups\/([^/?#]+)/.exec(url || "");
+  const name = m ? m[1] : (url || "").replace(/\/+$/, "").split("/").pop().replace(/\.[^.]*$/, "");
+  return name.replace(/[^A-Za-z0-9._-]/g, "_") || "group";
+}
+
+// ---------- posts ----------
+function reactionChips(p) {
+  const box = el("div", { class: "rx-chips" });
+  for (const t of RX) {
+    const n = p.reactions[t[0]];
+    if (n) box.append(el("span", { class: "rx-chip", title: rxName(t) }, el("i", { style: `background:${css(t[3])}` }), `${t[1]} ${fmt(n)}`));
+  }
+  return box;
+}
+window.icon = icon;
+function icon(path) {
+  const s = document.createElementNS(NS, "svg");
+  s.setAttribute("viewBox", "0 0 24 24"); s.setAttribute("fill", "none"); s.setAttribute("stroke", "currentColor"); s.setAttribute("stroke-width", "2");
+  s.innerHTML = path;
+  return s;
+}
+const ICON_HEART = '<path d="M12 20s-7-4.3-9-8.6C1.6 8.2 3.6 5 6.8 5c1.9 0 3.3 1.1 4.1 2.4h2.2C13.9 6.1 15.3 5 17.2 5c3.2 0 5.2 3.2 3.8 6.4C19 15.7 12 20 12 20z"/>';
+const ICON_SHARE = '<path d="M4 12v7a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-7"/><path d="M12 3v12M7 8l5-5 5 5"/>';
+const ICON_BUBBLE = '<path d="M21 12a8 8 0 0 1-11.5 7.2L4 20l1-4.5A8 8 0 1 1 21 12z"/>';
+
+function postCard(p, compact) {
+  const top = RX.reduce((best, t) => (p.reactions[t[0]] > (p.reactions[best[0]] || 0) ? t : best), RX[0]);
+  const card = el("article", { class: "card post", style: `--accent:${p.reaction_total ? css(top[3]) : "var(--border)"}` });
+  const when = p.posted_at ? new Date(p.posted_at).toLocaleString([], { dateStyle: "medium", ...(p.posted_has_time ? { timeStyle: "short" } : {}) }) : "";
+  card.append(el("div", { class: "post-head" },
+    el("span", { class: "author-chip", title: "Hashed author" , text: p.author || "unknown" }),
+    el("span", { text: p.time_text || "" }),
+    when ? el("span", { text: "· " + when }) : null,
+    p.reaction_updated_at ? el("span", { class: "updated-tag", title: "Reactions/comments refreshed by \"Update saved posts\"",
+      text: "↻ updated " + new Date(p.reaction_updated_at).toLocaleString([], { dateStyle: "short", timeStyle: "short" }) }) : null));
+  const text = el("div", { class: "post-text clamp", text: p.text || "(no text)" });
+  card.append(text);
+  if (!compact) {
+    requestAnimationFrame(() => {
+      if (text.scrollHeight > text.clientHeight + 2) {
+        const more = el("button", { class: "linkish", type: "button", text: "Show more", style: "margin-top:6px;font-size:13px" });
+        more.addEventListener("click", () => { const c = text.classList.toggle("clamp"); more.textContent = c ? "Show more" : "Show less"; });
+        text.after(more);
+      }
+    });
+  }
+  const foot = el("div", { class: "post-foot" },
+    el("span", { class: "stat" }, icon(ICON_HEART), plural(p.reaction_total, "reaction")),
+    el("span", { class: "stat", title: "Facebook's count · how many are saved here" }, icon(ICON_BUBBLE),
+      p.comment_count != null ? `${plural(p.comment_count, "comment")} · ${p.comments.length} saved`
+                              : plural(p.comments.length, "comment") + " saved"),
+    p.share_count != null ? el("span", { class: "stat" }, icon(ICON_SHARE), plural(p.share_count, "share")) : null,
+    reactionChips(p));
+  card.append(foot);
+  if (!compact && p.comments.length) {
+    const det = el("details", { class: "comments" }, el("summary", { text: `Show ${p.comments.length} comment${p.comments.length > 1 ? "s" : ""}` }));
+    for (const c of p.comments) det.append(el("div", { class: "comment" }, el("span", { class: "author-chip", text: c.author || "unknown" }), el("span", { text: c.text })));
+    card.append(det);
+  }
+  return card;
+}
+
+async function loadRecent() {
+  const d = await (await fetch("/api/posts?limit=3")).json();
+  const box = $("recentPosts");
+  box.replaceChildren();
+  if (!d.posts.length) { box.append(el("div", { class: "empty", text: "No posts yet" })); return; }
+  for (const p of d.posts) box.append(postCard(p, true));
+}
+
+let postOffset = 0, postReq = 0;
+async function loadPosts(reset) {
+  if (reset) postOffset = 0;
+  const req = ++postReq;
+  const q = encodeURIComponent($("postSearch").value.trim()), sort = $("postSort").value;
+  const d = await (await fetch(`/api/posts?q=${q}&sort=${sort}&offset=${postOffset}&limit=20`)).json();
+  if (req !== postReq) return;  // a newer search already replaced this one
+  const list = $("postList");
+  if (reset) list.replaceChildren();
+  for (const p of d.posts) list.append(postCard(p, false));
+  postOffset += d.posts.length;
+  $("postCount").textContent = `${fmt(d.total)} post${d.total === 1 ? "" : "s"}`;
+  $("loadMore").hidden = postOffset >= d.total;
+  if (!d.total) list.replaceChildren(el("div", { class: "card empty", text: $("postSearch").value ? "No posts match your search" : "No posts yet" }));
+}
+let searchTimer;
+$("postSearch").addEventListener("input", () => { clearTimeout(searchTimer); searchTimer = setTimeout(() => loadPosts(true), 250); });
+$("postSort").addEventListener("change", () => loadPosts(true));
+$("loadMore").addEventListener("click", () => loadPosts(false));
+
+// ---------- analytics ----------
+function kpiTile(label, value, accent, iconPath, suffix = "") {
+  const v = el("div", { class: "value" });
+  const num = el("span");
+  v.append(num);
+  if (suffix) v.append(el("small", { text: suffix }));
+  const tile = el("div", { class: "card kpi", style: `--accent:${css(accent)}` },
+    el("div", { class: "icon" }, icon(iconPath)), v, el("div", { class: "label", text: label }));
+  num.textContent = typeof value === "number" && !Number.isInteger(value) ? value.toLocaleString() : fmt(value);
+  return tile;
+}
+
+const UNKNOWN = ["unknown", "Type not shown", "Type not shown", "--unknown"];
+function renderDonut(byType, sources, allReactions) {
+  const svg = $("donut"), legend = $("donutLegend");
+  svg.replaceChildren(); legend.replaceChildren();
+  byType = { ...byType, unknown: Math.max(0, allReactions - RX.reduce((a, t) => a + (byType[t[0]] || 0), 0)) };
+  const types = byType.unknown ? [...RX, UNKNOWN] : RX;
+  const total = types.reduce((a, t) => a + (byType[t[0]] || 0), 0);
+  const cx = 110, cy = 110, R = 100, r = 64;
+  if (!total) {
+    svgEl(svg, "circle", { cx, cy, r: (R + r) / 2, fill: "none", stroke: "var(--track)", "stroke-width": R - r });
+    svgEl(svg, "text", { x: cx, y: cy + 4, "text-anchor": "middle" }).textContent = "No reactions yet";
+  } else {
+    let a0 = -Math.PI / 2;
+    const segs = types.filter(t => byType[t[0]]);
+    for (const t of segs) {
+      const v = byType[t[0]], a1 = a0 + (v / total) * Math.PI * 2;
+      const large = a1 - a0 > Math.PI ? 1 : 0;
+      const p = (rad, ang) => `${cx + rad * Math.cos(ang)},${cy + rad * Math.sin(ang)}`;
+      const d = segs.length === 1
+        ? `M${cx},${cy - R} A${R},${R} 0 1 1 ${cx - 0.01},${cy - R} L${cx - 0.01},${cy - r} A${r},${r} 0 1 0 ${cx},${cy - r} Z`
+        : `M${p(R, a0)} A${R},${R} 0 ${large} 1 ${p(R, a1)} L${p(r, a1)} A${r},${r} 0 ${large} 0 ${p(r, a0)} Z`;
+      // 2px surface stroke = the gap between segments
+      const seg = svgEl(svg, "path", { d, fill: css(t[3]), stroke: "var(--surface)", "stroke-width": 2, style: "transition:transform .2s;transform-origin:110px 110px" });
+      hover(seg, e => { seg.style.transform = "scale(1.03)"; showTip(e, fmt(v), `${rxName(t)} · ${(100 * v / total).toFixed(1)}%`, css(t[3])); });
+      seg.addEventListener("pointerleave", () => { seg.style.transform = ""; });
+      a0 = a1;
+    }
+    const big = svgEl(svg, "text", { x: cx, y: cy + 2, "text-anchor": "middle", style: "font-size:26px;font-weight:750;fill:var(--text-primary)" });
+    big.textContent = total >= 10000 ? (total / 1000).toFixed(1) + "K" : fmt(total);
+    svgEl(svg, "text", { x: cx, y: cy + 22, "text-anchor": "middle" }).textContent = "reactions";
+  }
+  for (const t of types) {
+    const v = byType[t[0]] || 0;
+    legend.append(el("div", { class: "legend-row" },
+      el("span", { class: "swatch", style: `background:${css(t[3])}` }),
+      el("span", { text: rxName(t) }),
+      el("span", { class: "v", text: fmt(v) }),
+      el("span", { class: "p", text: total ? (100 * v / total).toFixed(1) + "%" : "–" })));
+  }
+  const s = sources || {}, parts = [];
+  if (s.popup) parts.push(`${fmt(s.popup)} posts with every type`);
+  if (s.bar) parts.push(`${fmt(s.bar)} with only the top 3 types (other types show as "Type not shown")`);
+  if (s.none) parts.push(`${fmt(s.none)} without reactions`);
+  $("coverage").textContent = parts.join(" · ");
+}
+
+function renderPerDay(series) {
+  const svg = $("perDay");
+  const W = svg.clientWidth || 500, H = 250, pad = { l: 30, r: 10, t: 12, b: 26 };
+  svg.setAttribute("viewBox", `0 0 ${W} ${H}`);
+  svg.replaceChildren();
+  if (series.length < 2) {
+    svgEl(svg, "text", { x: W / 2, y: H / 2, "text-anchor": "middle" }).textContent = series.length ? "Need posts from at least 2 days" : "No dated posts yet";
+    return;
+  }
+  const max = Math.max(4, ...series.map(s => s[1])), step = Math.ceil(max / 4), top = step * 4;
+  const plotW = W - pad.l - pad.r, plotH = H - pad.t - pad.b;
+  const x = i => pad.l + (i / (series.length - 1)) * plotW;
+  const y = v => pad.t + plotH - (v / top) * plotH;
+  for (let v = 0; v <= top; v += step) {
+    svgEl(svg, "line", { class: "gridline", x1: pad.l, x2: W - pad.r, y1: y(v), y2: y(v) });
+    svgEl(svg, "text", { x: pad.l - 6, y: y(v) + 4, "text-anchor": "end" }).textContent = v;
+  }
+  const defs = svgEl(svg, "defs");
+  const g = svgEl(defs, "linearGradient", { id: "areaGrad", x1: 0, x2: 0, y1: 0, y2: 1 });
+  svgEl(g, "stop", { offset: "0%", "stop-color": "var(--c1)", "stop-opacity": .35 });
+  svgEl(g, "stop", { offset: "100%", "stop-color": "var(--c1)", "stop-opacity": 0 });
+  const pts = series.map((s, i) => `${x(i)},${y(s[1])}`);
+  svgEl(svg, "path", { d: `M${x(0)},${y(0)} L${pts.join(" L")} L${x(series.length - 1)},${y(0)} Z`, fill: "url(#areaGrad)" });
+  svgEl(svg, "path", { d: `M${pts.join(" L")}`, fill: "none", stroke: "var(--c1)", "stroke-width": 2, "stroke-linejoin": "round" });
+  const every = Math.ceil(series.length / 6);
+  series.forEach((s, i) => {
+    if (i % every === 0 || i === series.length - 1) {
+      const d = new Date(s[0] + "T00:00");
+      svgEl(svg, "text", { x: x(i), y: H - 8, "text-anchor": i === 0 ? "start" : i === series.length - 1 ? "end" : "middle" })
+        .textContent = d.toLocaleDateString([], { day: "numeric", month: "short" });
+    }
+  });
+  // Crosshair + tooltip
+  const cross = svgEl(svg, "line", { y1: pad.t, y2: pad.t + plotH, stroke: "var(--text-muted)", "stroke-dasharray": "3 3", opacity: 0 });
+  const dot = svgEl(svg, "circle", { r: 5, fill: "var(--c1)", stroke: "var(--surface)", "stroke-width": 2, opacity: 0 });
+  const hit = svgEl(svg, "rect", { x: pad.l, y: pad.t, width: plotW, height: plotH, fill: "transparent" });
+  hit.addEventListener("pointermove", e => {
+    const rect = svg.getBoundingClientRect();
+    const px = (e.clientX - rect.left) * (W / rect.width);
+    const i = Math.max(0, Math.min(series.length - 1, Math.round(((px - pad.l) / plotW) * (series.length - 1))));
+    cross.setAttribute("x1", x(i)); cross.setAttribute("x2", x(i)); cross.setAttribute("opacity", 1);
+    dot.setAttribute("cx", x(i)); dot.setAttribute("cy", y(series[i][1])); dot.setAttribute("opacity", 1);
+    const d = new Date(series[i][0] + "T00:00");
+    showTip(e, series[i][1], `posts · ${d.toLocaleDateString([], { weekday: "short", day: "numeric", month: "short" })}`, "var(--c1)");
+  });
+  hit.addEventListener("pointerleave", () => { cross.setAttribute("opacity", 0); dot.setAttribute("opacity", 0); hideTip(); });
+}
+
+const RAMP = [22, 40, 58, 78, 100];  // % of the series color mixed into the surface
+function renderHeatmap(heat, n) {
+  const box = $("heatmap");
+  box.replaceChildren();
+  $("heatSub").textContent = `Weekday × hour of day · ${fmt(n)} posts with a known time`;
+  if (n < 5) { box.append(el("div", { class: "empty", text: "Not enough posts with an exact time yet" })); return; }
+  const max = Math.max(...heat.flat());
+  const grid = el("div", { class: "heat", role: "img", "aria-label": "Posts by weekday and hour" });
+  grid.append(el("span"));
+  for (let h = 0; h < 24; h++) grid.append(el("span", { class: "hl", text: h % 3 === 0 ? String(h) : "" }));
+  const days = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+  heat.forEach((row, d) => {
+    grid.append(el("span", { class: "dl", text: days[d] }));
+    row.forEach((v, h) => {
+      const level = v ? Math.min(RAMP.length - 1, Math.floor((v / max) * RAMP.length - 1e-9)) : -1;
+      const cell = el("span", { class: "cell", style: level >= 0 ? `background:color-mix(in srgb, var(--c1) ${RAMP[level]}%, var(--surface))` : "" });
+      hover(cell, e => showTip(e, v, `posts · ${days[d]} ${String(h).padStart(2, "0")}:00`));
+      grid.append(cell);
+    });
+  });
+  box.append(grid);
+  const ramp = el("div", { class: "ramp" }, "fewer");
+  for (const p of RAMP) ramp.append(el("i", { style: `background:color-mix(in srgb, var(--c1) ${p}%, var(--surface))` }));
+  ramp.append("more");
+  box.append(ramp);
+}
+
+function renderTopPosts(top) {
+  const key = $("topKey"), list = $("topPosts");
+  key.replaceChildren(); list.replaceChildren();
+  for (const t of [...RX, UNKNOWN]) key.append(el("span", {}, el("i", { class: "swatch", style: `background:${css(t[3])}` }), rxName(t)));
+  if (!top.length) { list.append(el("div", { class: "empty", text: "No reactions yet" })); return; }
+  const max = top[0].total;
+  for (const p of top) {
+    const stack = el("div", { class: "stack", style: `width:${Math.max(2, 100 * p.total / max)}%` });
+    const known = RX.reduce((a, t) => a + p.reactions[t[0]], 0);
+    for (const t of RX) {
+      const v = p.reactions[t[0]];
+      if (!v) continue;
+      const seg = el("div", { style: `flex:${v};background:${css(t[3])}` });
+      hover(seg, e => showTip(e, fmt(v), rxName(t), css(t[3])));
+      stack.append(seg);
+    }
+    if (p.total > known) {  // types Facebook didn't show in the bar
+      const seg = el("div", { style: `flex:${p.total - known};background:var(--unknown)` });
+      hover(seg, e => showTip(e, fmt(p.total - known), "type not shown by Facebook"));
+      stack.append(seg);
+    }
+    list.append(el("div", { class: "stack-item" },
+      el("div", { class: "title", title: p.text }, p.text || "(no text)", el("span", { text: p.time_text ? "  · " + p.time_text : "" })),
+      el("div", { class: "stack-line" }, el("div", { style: "flex:1;min-width:0" }, stack), el("span", { class: "num", text: `${fmt(p.total)} · ${fmt(p.comments)} 💬 · ${fmt(p.shares)} ↗` }))));
+  }
+}
+
+function renderCols(boxId, data, color, label) {
+  const box = $(boxId);
+  box.replaceChildren();
+  const max = Math.max(1, ...data.map(d => d[1]));
+  for (const [name, v] of data) {
+    const bar = el("div", { class: "bar", style: `height:0;background:linear-gradient(180deg, ${css(color)}, color-mix(in srgb, ${css(color)} 55%, var(--surface)))` });
+    const col = el("div", { class: "col" }, el("span", { class: "val", text: fmt(v) }), el("div", { class: "barbox" }, bar), el("span", { class: "lbl", text: name }));
+    hover(col, e => showTip(e, fmt(v), `posts · ${label(name)}`, css(color)));
+    box.append(col);
+    // Small but non-zero counts still get a visible bar
+    requestAnimationFrame(() => { bar.style.height = v ? `max(4px, ${(100 * v / max).toFixed(1)}%)` : "2px"; });
+  }
+}
+
+function renderBars(boxId, list, color, label, emptyText) {
+  const box = $(boxId);
+  box.replaceChildren();
+  if (!list.length) { box.append(el("div", { class: "empty", text: emptyText })); return; }
+  const max = Math.max(...list.map(r => r[1]));
+  list.forEach(([name, n], i) => {
+    const fill = el("div", { class: "fill", style: `width:0;background:linear-gradient(90deg, ${css(color)}, color-mix(in srgb, ${css(color)} 60%, var(--c7)))` });
+    const row = el("div", { class: "bar-row" }, el("span", { class: "name", title: name, text: name }), el("div", { class: "track" }, fill), el("span", { class: "num", text: fmt(n) }));
+    hover(row, e => showTip(e, fmt(n), label(name), css(color)));
+    box.append(row);
+    requestAnimationFrame(() => { fill.style.width = (100 * n / max) + "%"; });
+  });
+}
+
+let analyticsBusy = false;
+async function loadAnalytics() {
+  if (analyticsBusy) return;
+  analyticsBusy = true;
+  try {
+    const a = await (await fetch("/api/analytics")).json();
+    const k = $("aKpis");
+    k.replaceChildren(
+      kpiTile("Posts", a.posts, "--c1", '<path d="M4 5h16M4 10h16M4 15h10"/>'),
+      kpiTile("Comments (Facebook's count)", a.real_comments, "--c3", ICON_BUBBLE),
+      kpiTile("Reactions", a.reactions, "--c5", ICON_HEART),
+      kpiTile("Shares", a.shares, "--c6", ICON_SHARE),
+      kpiTile("Avg comments / post", a.avg_comments, "--c8", ICON_BUBBLE),
+      kpiTile("Avg reactions / post", a.avg_reactions, "--c2", '<path d="M3 17l6-6 4 4 8-8"/><path d="M14 7h7v7"/>'),
+      kpiTile("Posts with comments", a.with_comments_pct, "--c7", '<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>', "%"),
+      kpiTile("Authors (hashed)", a.unique_authors, "--c4", '<circle cx="12" cy="8" r="4"/><path d="M4 21c1-4 4.5-6 8-6s7 2 8 6"/>'));
+    renderDonut(a.reactions_by_type, a.reaction_sources, a.reactions);
+    renderPerDay(a.posts_per_day);
+    renderHeatmap(a.heatmap, a.heatmap_posts);
+    renderTopPosts(a.top_posts);
+    renderCols("reactionHist", a.reaction_buckets, "--c5", n => `${n} reactions`);
+    renderCols("commentHist", a.comment_distribution, "--c3", n => `${n} comments`);
+    $("commentHistSub").textContent = a.counted_posts < a.posts
+      ? `Facebook's own count · ${fmt(a.counted_posts)} of ${fmt(a.posts)} posts have it (older posts get it with "Update saved posts")`
+      : "Facebook's own count for each post";
+    renderBars("phrases", a.top_phrases, "--c1", n => `posts mention "${n}"`, "No phrases yet");
+  } finally {
+    analyticsBusy = false;
+  }
+}
+
+// ---------- log ----------
+async function loadLog() {
+  const d = await (await fetch("/api/log")).json();
+  const f = $("logFilter").value.trim().toLowerCase(), problems = $("logProblems").checked;
+  const lines = d.lines.filter(l => (!f || l.toLowerCase().includes(f)) && (!problems || /l-err|l-warn/.test(colorLine(l))));
+  const box = $("logBox");
+  renderLogLines(box, lines);
+  if ($("logFollow").checked) box.scrollTop = box.scrollHeight;
+}
+for (const id of ["logFilter", "logProblems"]) $(id).addEventListener("input", loadLog);
+
+// ---------- settings ----------
+const CHOICE_LABELS = { "": "Auto (Chromium, then Chrome, then Edge)", chromium: "Playwright Chromium", chrome: "Google Chrome", msedge: "Microsoft Edge" };
+let schema = {}, loadedValues = {};
+
+function renderSettings(payload) {
+  schema = payload.schema;
+  loadedValues = payload.values;
+  const box = $("settingsFields");
+  box.replaceChildren();
+  const groups = {};
+  for (const [key, spec] of Object.entries(schema)) {
+    if (spec.hidden) continue;
+    if (!groups[spec.group]) {
+      groups[spec.group] = el("fieldset", {}, el("legend", { text: spec.group }));
+      box.append(groups[spec.group]);
+    }
+    const value = payload.values[key], id = "set_" + key;
+    const field = el("div", { class: "field" + (spec.type === "bool" ? " check" : "") });
+    field.dataset.key = key;
+    const label = el("label", { for: id, text: spec.label });
+    let input;
+    if (spec.type === "bool") {
+      input = el("input", { type: "checkbox" });
+      input.checked = !!value;
+    } else if (spec.type === "list") {
+      input = el("textarea", { rows: Math.min(8, Math.max(3, value.length + 1)), spellcheck: "false" });
+      input.value = value.join("\n");
+    } else if (spec.type === "choice") {
+      input = el("select");
+      for (const c of spec.choices) input.append(el("option", { value: c, text: CHOICE_LABELS[c] || c }));
+      input.value = value;
+    } else {
+      input = el("input", spec.type === "str" ? { type: "text" }
+        : { type: "number", min: spec.min, max: spec.max, step: spec.type === "float" ? "0.5" : "1" });
+      input.value = value;
+    }
+    input.id = id; input.name = key;
+    if (spec.type === "bool") field.append(input, label); else field.append(label, input);
+    field.append(el("div", { class: "note" }), el("div", { class: "err" }));
+    groups[spec.group].append(field);
+  }
+  // Hints like "Capped at 30 while low-risk mode is on"
+  for (const [key, spec] of Object.entries(schema)) {
+    if (!spec.note_when) continue;
+    const note = $("set_" + key).parentElement.querySelector(".note");
+    const sync = () => { note.textContent = spec.note_when.filter(([o, v]) => $("set_" + o).checked === v).map(n => n[2]).join(" · "); };
+    for (const [other] of spec.note_when) $("set_" + other).addEventListener("change", sync);
+    sync();
+  }
+  // Grey out options that don't apply, e.g. comment options while comments are off
+  for (const [key, spec] of Object.entries(schema)) {
+    if (!spec.disabled_when) continue;
+    const input = $("set_" + key);
+    const sync = () => { input.disabled = spec.disabled_when.some(([other, v]) => $("set_" + other).checked === v); };
+    for (const [other] of spec.disabled_when) $("set_" + other).addEventListener("change", sync);
+    sync();
+  }
+}
+function showErrors(errors) {
+  document.querySelectorAll("#settingsFields .field").forEach(f => {
+    const msg = (errors || {})[f.dataset.key] || "";
+    f.classList.toggle("invalid", !!msg);
+    f.querySelector(".err").textContent = msg;
+  });
+}
+async function loadSettings() { renderSettings(await (await fetch("/api/settings")).json()); }
+
+// Saves whatever was edited. Returns { ok, changed }.
+async function saveSettings() {
+  const values = {};
+  for (const [key, spec] of Object.entries(schema)) {
+    const input = $("set_" + key);
+    if (!input) continue;
+    let value = spec.type === "bool" ? input.checked : input.value;
+    if (spec.type === "list") value = value.split(/[\s,]+/).map(v => v.trim().replace(/\/+$/, "")).filter(Boolean);
+    // Only send what changed, so an unusual value from .env doesn't block saving others
+    if (JSON.stringify(spec.type === "list" ? value : String(value)) !==
+        JSON.stringify(spec.type === "list" ? loadedValues[key] : String(loadedValues[key]))) values[key] = value;
+  }
+  if (!Object.keys(values).length) return { ok: true, changed: false };
+  const body = await (await postJSON("/api/settings", { values })).json();
+  showErrors(body.errors);
+  $("settingsNotice").textContent = body.message;
+  if (body.ok) { renderSettings(body); refreshStats(); }
+  return { ok: body.ok, changed: true };
+}
+$("settingsForm").addEventListener("submit", async e => {
+  e.preventDefault();
+  const { changed } = await saveSettings();
+  if (!changed) $("settingsNotice").textContent = "Nothing changed.";
+  refreshStats();
+});
+$("resetSettings").addEventListener("click", async () => {
+  if (!confirm("Discard the settings saved from the dashboard and go back to .env values?")) return;
+  const body = await (await postJSON("/api/settings", { reset: true })).json();
+  showErrors({});
+  $("settingsNotice").textContent = body.message;
+  renderSettings(body);
+  refreshStats();
+});
+
+// ---------- account ----------
+const ICON_OK = '<path d="M5 12l5 5L20 7"/>';
+const ICON_KEY = '<circle cx="8" cy="15" r="4"/><path d="M11 12l9-9M17 6l3 3"/>';
+let account = null, accountTimer = null;
+
+function renderLoginAlert(d) {
+  // A run that ended on a login page, or no login at all: point to the Account tab
+  const s = d.status || {};
+  const needLogin = !d.has_session || (s.state === "blocked" && /login|checkpoint/i.test(s.message || "")
+    && !(d.checkpoint && !d.checkpoint.acknowledged && d.checkpoint_alert));
+  const show = needLogin && currentTab !== "account" && d.login_state !== "done";
+  $("loginAlert").hidden = !show;
+  $("accountDot").hidden = !needLogin;
+  if (show) {
+    $("loginAlertTitle").textContent = d.has_session ? "Facebook asked you to log in again" : "No saved Facebook login";
+    $("loginAlertText").textContent = d.has_session ? "The saved session has expired or was challenged." : "Log in before scraping.";
+  }
+}
+
+function renderAccount(a) {
+  account = a;
+  const ok = a.has_session && a.unlocked;
+  const icon = $("acctIcon");
+  icon.style.setProperty("--accent", ok ? "var(--good)" : "var(--warning)");
+  icon.replaceChildren(window.icon ? window.icon(ok ? ICON_OK : ICON_KEY) : "");
+  $("acctTitle").textContent = ok ? "Logged in" : a.vault_exists && !a.unlocked ? "Vault locked" : "Not logged in";
+  $("acctLine").textContent = ok
+    ? `Facebook account ${a.account} · session saved ${a.session_saved_at.replace("T", " ")}. ` +
+      "If scraping sends you to a login page again, log in below to replace it."
+    : a.vault_exists && !a.unlocked ? "Enter your vault passphrase to use or replace the saved login."
+    : "Log in with one of the two ways below. The session is stored encrypted in data/vault.enc.";
+
+  // Passphrase: create the vault, or unlock it
+  const needPass = !a.unlocked;
+  $("passCard").hidden = !needPass;
+  $("passConfirmField").hidden = a.vault_exists;
+  $("unlockRow").hidden = !a.vault_exists;
+  $("passTitle").textContent = a.vault_exists ? "Unlock the vault" : "Choose a vault passphrase";
+  $("passSub").textContent = a.vault_exists
+    ? "The passphrase you chose when the vault was created."
+    : "At least 8 characters. It encrypts your Facebook login on this computer and can't be recovered, so keep it somewhere safe.";
+
+  $("useSavedField").hidden = !a.has_saved_password;
+  $("savedEmail").textContent = a.saved_email || "";
+  $("forgetRow").hidden = !a.has_saved_password;
+  $("credFields").hidden = a.has_saved_password && $("useSaved").checked;
+
+  const job = a.login || {};
+  const st = $("loginStatus");
+  st.className = "login-status " + (job.state || "");
+  st.textContent = job.message || "";
+  $("loginBtn").disabled = job.state === "waiting";
+  $("cancelLogin").hidden = job.state !== "waiting";
+  clearTimeout(accountTimer);
+  if (job.state === "waiting") accountTimer = setTimeout(loadAccount, 1500);
+}
+
+async function loadAccount() {
+  renderAccount(await (await fetch("/api/account")).json());
+}
+
+function passphraseBody() {
+  if (account && account.unlocked) return {};
+  return { passphrase: $("passphrase").value, passphrase_confirm: $("passphraseConfirm").value };
+}
+
+async function accountPost(action, body) {
+  const res = await (await postJSON("/api/account/" + action, { ...passphraseBody(), ...body })).json();
+  renderAccount(res);
+  refreshStats();
+  return res;
+}
+
+$("useSaved").addEventListener("change", () => { $("credFields").hidden = $("useSaved").checked; });
+$("unlockBtn").addEventListener("click", async () => {
+  const r = await accountPost("unlock", {});
+  $("unlockNotice").textContent = r.ok ? "" : r.message;
+  if (r.ok) $("passphrase").value = "";
+});
+$("loginForm").addEventListener("submit", async e => {
+  e.preventDefault();
+  const body = $("useSaved").checked && account && account.has_saved_password
+    ? { use_saved: true }
+    : { email: $("loginEmail").value, password: $("loginPass").value, remember: $("rememberCreds").checked };
+  const r = await accountPost("login", body);
+  $("loginPass").value = "";  // don't leave the password sitting in the page
+  if (!r.ok) { $("loginStatus").className = "login-status error"; $("loginStatus").textContent = r.message; }
+});
+$("cancelLogin").addEventListener("click", () => accountPost("cancel", {}));
+$("forgetBtn").addEventListener("click", async () => {
+  if (!confirm("Remove the saved email and password from the vault? The current session stays.")) return;
+  await accountPost("forget-password", {});
+});
+$("cookieForm").addEventListener("submit", async e => {
+  e.preventDefault();
+  const fields = {};
+  for (const n of ["c_user", "xs", "datr", "fr", "sb"]) fields[n] = $("ck_" + n).value;
+  const r = await accountPost("cookies", { fields, text: $("cookieText").value });
+  $("cookieNotice").textContent = r.message;
+  $("cookieNotice").style.color = r.ok ? "var(--good)" : "var(--critical)";
+  if (r.ok) {  // clear the secrets from the page once they're in the vault
+    for (const n of ["c_user", "xs", "datr", "fr", "sb"]) $("ck_" + n).value = "";
+    $("cookieText").value = "";
+  }
+});
+
+// ---------- run + checkpoint ----------
+$("stopBtn").addEventListener("click", async () => {
+  if (!confirm("Stop the scrape? It finishes the current scroll, saves everything and closes the browser.")) return;
+  $("stopBtn").disabled = true;
+  const body = await (await postJSON("/api/stop")).json();
+  $("notice").textContent = body.message;
+  setTimeout(() => { $("stopBtn").disabled = false; }, 3000);
+  refreshStats();
+});
+$("checkpointAck").addEventListener("click", async () => { await postJSON("/api/checkpoint/ack"); refreshStats(); });
+
+$("runBtn").addEventListener("click", async () => {
+  const cp = lastStats && activeCheckpoint(lastStats);
+  if (cp && !confirm(`Facebook showed a checkpoint at ${cp.at.replace("T", " ")}.\n\nRunning again now raises the risk of the account being locked. Start anyway?`)) return;
+  if (cp) await postJSON("/api/checkpoint/ack");
+  // Ask once, during this click, so a later checkpoint can raise a desktop notification
+  if (lastStats && lastStats.checkpoint_alert && "Notification" in window && Notification.permission === "default") Notification.requestPermission();
+  $("runBtn").disabled = true;
+  // Unsaved edits in Settings are saved first, so the run uses them
+  const saved = await saveSettings();
+  if (!saved.ok) {
+    showTab("settings");
+    $("settingsNotice").textContent = "Not started: fix the highlighted settings first.";
+    $("runBtn").disabled = false;
+    return;
+  }
+  const body = await (await postJSON("/api/run")).json();
+  showTab("overview");
+  $("notice").textContent = saved.changed && body.ok ? "Settings saved. " + body.message : body.message;
+  refreshStats();
+});
+
+// ---------- color theme (separate from low-risk mode) ----------
+const THEMES = ["auto", "light", "dark"];
+const THEME_ICONS = {
+  auto: '<circle cx="12" cy="12" r="8"/><path d="M12 4v16" /><path d="M12 4a8 8 0 0 1 0 16z" fill="currentColor"/>',
+  light: '<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/>',
+  dark: '<path d="M20 14.5A8 8 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5z"/>',
+};
+function applyTheme(t) {
+  if (t === "auto") document.documentElement.removeAttribute("data-theme");
+  else document.documentElement.setAttribute("data-theme", t);
+  const btn = $("themeBtn");
+  btn.replaceChildren(icon(THEME_ICONS[t]));
+  btn.title = `Color theme: ${t} (click to change)`;
+  btn.setAttribute("aria-label", `Color theme: ${t}`);
+  try { localStorage.setItem("theme", t); } catch {}
+  if (currentTab === "analytics") loadAnalytics();
+}
+let theme = "auto";
+try { theme = localStorage.getItem("theme") || "auto"; } catch {}
+$("themeBtn").addEventListener("click", () => { theme = THEMES[(THEMES.indexOf(theme) + 1) % THEMES.length]; applyTheme(theme); });
+
+// ---------- start ----------
+let resizeTimer;
+addEventListener("resize", () => {
+  clearTimeout(resizeTimer);
+  resizeTimer = setTimeout(() => { refreshStats(); if (currentTab === "analytics") loadAnalytics(); }, 150);
+});
+applyTheme(theme);
+loadSettings();
+showTab(location.hash.slice(1) || "overview");
+refreshStats();
+setInterval(refreshStats, 2000);
+</script>
+</body>
+</html>

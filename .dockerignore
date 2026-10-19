@@ -1,0 +1,12 @@
+.git/
+.github/
+.venv/
+venv/
+data/
+.env
+*.enc
+cookies*
+__pycache__/
+.omc/
+.claude/
+tests/

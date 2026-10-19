@@ -1,0 +1,4 @@
+# Same line endings on every OS: LF in the repo and in checkouts,
+# except Windows batch files, which need CRLF.
+* text=auto eol=lf
+*.bat text eol=crlf
