@@ -4,7 +4,7 @@ Creates .venv, installs the Python packages and Playwright's Chromium,
 and copies .env.example to .env if you don't have one yet.
 """
 import os
-import shutil
+import secrets
 import subprocess
 import sys
 import venv
@@ -38,8 +38,14 @@ if __name__ == "__main__":
 
     env_file = os.path.join(HERE, ".env")
     if not os.path.isfile(env_file):
-        shutil.copy(os.path.join(HERE, ".env.example"), env_file)
-        print("\nCreated .env from .env.example. Edit it and set your own HASH_SALT.")
+        # A random, private salt: it's what keeps hashed author names from
+        # being turned back into names (see "Respect others' privacy")
+        with open(os.path.join(HERE, ".env.example"), encoding="utf-8") as f:
+            lines = [f"HASH_SALT={secrets.token_hex(16)}\n" if line.startswith("HASH_SALT=") else line
+                     for line in f]
+        with open(env_file, "w", encoding="utf-8") as f:
+            f.writelines(lines)
+        print("\nCreated .env with a random HASH_SALT. Keep .env private and don't change the salt later.")
 
     py = os.path.relpath(PY, HERE)
     print(f"""

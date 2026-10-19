@@ -14,7 +14,7 @@ from config import (
     CHECKPOINT_FILE, DASHBOARD_HOST, DASHBOARD_PORT, LOG_FILE, SCHEMA, STATUS_FILE, STOP_FILE, GroupFiles,
     current_settings, reset_settings, save_settings, validate_settings,
 )
-from utils import clean_saved_files, describe_migration, migrate_legacy_data
+from utils import privacy_warnings, clean_saved_files, describe_migration, migrate_legacy_data
 import import_session
 import login
 from secret_store import (
@@ -75,6 +75,9 @@ def stats(slug=None):
         # The dashboard process outlives settings changes, so read them fresh
         "checkpoint_alert": settings["CHECKPOINT_ALERT"],
         "low_risk_mode": settings["LOW_RISK_MODE"],
+        # Read fresh: settings.json may have changed since the dashboard started
+        "privacy_warning": ("Author names are NOT hashed: real names will be saved." if not settings["ANONYMIZE"]
+                            else " ".join(privacy_warnings())),
         "recycle_mb": settings["RECYCLE_MB"],
         "checkpoint": read_checkpoint(),
         "log": log_tail(8),

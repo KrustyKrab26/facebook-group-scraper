@@ -19,7 +19,7 @@ import reactions
 from secret_store import VaultError, load_session
 from utils import (
     anonymize, clean_saved_files, describe_migration, launch_browser, load_existing_ids, load_saved_engagement, log_message,
-    migrate_legacy_data, record_checkpoint, save_comments_to_csv, save_posts_to_csv, save_reactions_to_csv,
+    migrate_legacy_data, privacy_warnings, record_checkpoint, save_comments_to_csv, save_posts_to_csv, save_reactions_to_csv,
     update_comment_texts, update_reactions_csv, write_status,
 )
 
@@ -692,6 +692,8 @@ def _scrape(groups, status, finish):
     if LOW_RISK_MODE:
         log_message(f"Low-risk mode: up to {BATCH_POSTS if BATCH_MODE else MAX_POSTS} posts, "
                     f"{MIN_DELAY:g}-{MAX_DELAY:g}s pauses, no comment or reaction popups")
+    for warning in privacy_warnings():
+        log_message("PRIVACY WARNING: " + warning)
     if BLOCK_MEDIA:
         log_message("Not loading images, videos and fonts (saves memory)")
     if BATCH_MODE:

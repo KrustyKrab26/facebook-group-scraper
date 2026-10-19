@@ -14,6 +14,11 @@ exploring the data.
 > [Responsible use and the law](#responsible-use-and-the-law) before running it,
 > keep runs small, and never publish the raw data.
 >
+> **Respect the people in the group.** Every post and comment was written by a
+> real person who didn't sign up to be in your dataset. Author names are
+> **hashed by default — keep it that way**, and read
+> [Respect others' privacy](#respect-others-privacy).
+>
 > **Chỉ dùng cho mục đích học tập.** Xem phần
 > [Sử dụng có trách nhiệm](#sử-dụng-có-trách-nhiệm-tiếng-việt) bằng tiếng Việt.
 
@@ -24,6 +29,7 @@ test suite runs on all three systems on every push.
 
 ## Contents
 
+- [Respect others' privacy](#respect-others-privacy)
 - [Features](#features)
 - [What it deliberately doesn't do](#what-it-deliberately-doesnt-do)
 - [Responsible use and the law](#responsible-use-and-the-law)
@@ -41,6 +47,46 @@ test suite runs on all three systems on every push.
 - [Credits and license](#credits-and-license)
 
 ---
+
+## Respect others' privacy
+
+The people whose posts you collect are classmates, friends and strangers who
+wrote for their group, not for a dataset. Treat what you collect as their
+personal data, because it is.
+
+**Author names are hashed — keep it that way.**
+
+- With **Hash author names** on (the default), every author name is turned
+  into a code like `user_3f9a1c07b2e4` *before anything is written to disk*.
+  Real names are never saved, not in the CSVs, not in the logs.
+- The code is the first 12 hex digits of SHA-256(`HASH_SALT` + name). The same
+  person always gets the same code, so you can still count posts per author,
+  find the most active members, or link a post to its comments — without
+  knowing who anyone is.
+- **`HASH_SALT` is what makes the codes safe.** Without it, nobody can turn a
+  code back into a name by trying names from the member list; with it, anyone
+  can. `python start.py` / `install.py` generates a random salt in `.env` on
+  the first run. Keep it secret, never commit or share it, and don't change it
+  later (the same person would then get a different code).
+- Turning hashing off saves real names. Don't, unless you have the people's
+  consent; the scraper logs a warning every run if it's off or if the salt is
+  still a placeholder.
+
+**And beyond hashing:**
+
+- **Don't try to re-identify anyone.** Don't work out who a code belongs to,
+  match posts to profiles, or combine the data with other sources.
+- **Text can identify people too.** A quoted post can be searched on Facebook
+  even without a name. Report counts and charts; paraphrase; quote only with
+  permission.
+- **Collect only what you need.** Turn off comments or reactions if your
+  analysis doesn't use them. Photos are never downloaded.
+- **Keep it on your computer, and delete it when you're done** (`data/groups/…`).
+- **Never publish the raw data** — CSVs, codes, cookies — not even "anonymised".
+- **If someone asks you to remove their posts, remove them.**
+
+Hashing is *pseudonymisation*, not full anonymisation: the data stays personal
+data, with all the care that implies.
 
 ## Features
 
@@ -67,7 +113,8 @@ test suite runs on all three systems on every push.
 - Skims quickly past posts it already has, and never clicks "Xem thêm" on them.
 
 **Privacy and security**
-- Author names hashed with a secret salt (on by default).
+- **Author names hashed with a secret salt before saving** (on by default; a
+  random salt is generated on install). Real names never reach the disk.
 - Your Facebook session (and optional password) stored in one file encrypted
   with a passphrase you choose (scrypt + Fernet). No OS keychain needed.
 - Dashboard only reachable from your own computer; other websites can't drive it.
@@ -150,6 +197,21 @@ Don't make the scraper faster or harder to detect. Use a channel that allows it:
 - **Nhóm riêng tư:** nên xin phép quản trị viên trước khi thu thập.
 - **Không công bố dữ liệu thô** (bài viết, bình luận, mã băm, cookie). Chỉ chia
   sẻ kết quả tổng hợp: số liệu, biểu đồ.
+
+**Tôn trọng quyền riêng tư của người khác.** Mỗi bài viết, bình luận là của một
+người thật, họ viết cho nhóm chứ không phải cho bộ dữ liệu của bạn.
+
+- **Luôn giữ băm (hash) tên tác giả** — bật sẵn mặc định. Tên được đổi thành mã
+  dạng `user_3f9a1c07b2e4` *trước khi lưu*, nên tên thật không bao giờ được ghi
+  ra file. Cùng một người luôn có cùng một mã, nên vẫn đếm được số bài mỗi người.
+- **Giữ bí mật `HASH_SALT`** (tạo ngẫu nhiên khi cài đặt): có salt là có thể dò
+  ngược mã ra tên từ danh sách thành viên. Không commit, không chia sẻ, không
+  đổi giữa chừng.
+- **Không tìm cách nhận diện lại** ai đứng sau một mã, không đối chiếu với trang
+  cá nhân hay nguồn dữ liệu khác.
+- **Trích dẫn cẩn thận:** nội dung bài vẫn có thể tìm ra người viết. Ưu tiên số
+  liệu tổng hợp, diễn đạt lại, chỉ trích nguyên văn khi được đồng ý.
+- **Thu thập vừa đủ, xoá khi xong**, và **xoá bài của ai đó nếu họ yêu cầu**.
 - **Cần dữ liệu lớn?** Đừng tăng tốc hay che giấu scraper. Hãy dùng kênh chính
   thức: **Meta Content Library** (dành cho nhà nghiên cứu, cần đăng ký qua
   trường), xin **quản trị viên nhóm** xuất dữ liệu hoặc cho phép bằng văn bản,
@@ -179,9 +241,9 @@ python start.py          # Windows: py start.py, or double-click start.bat
 On macOS/Linux you can also run `sh start.sh`.
 
 The first run creates a virtual environment in `.venv`, installs the pinned
-packages and Chromium, and creates `.env` from `.env.example`. **Open `.env` and
-set your own `HASH_SALT`** (any random text; keep it secret). Then the
-dashboard opens at <http://localhost:8765>:
+packages and Chromium, and creates `.env` from `.env.example` with a **random
+`HASH_SALT`** (the secret behind the author-name codes: keep it private, back
+it up, don't change it). Then the dashboard opens at <http://localhost:8765>:
 
 1. **Account** tab: choose a vault passphrase and log in (see below).
 2. **Settings** tab: add your group URL(s); keep the defaults otherwise.
@@ -288,7 +350,7 @@ greyed out.
 | Don't load images, videos, fonts | on | Big RAM and data saver |
 | Reopen the page above (MB) | 1200 | 0 = never |
 | Browser / hide window | auto / off | Chromium, then Chrome, then Edge |
-| Hash author names | on | Salted SHA-256 |
+| **Hash author names** | on | **Keep it on.** Names become salted SHA-256 codes before saving; see [Respect others' privacy](#respect-others-privacy) |
 
 Only in `.env`: `HASH_SALT`, `DATA_DIR`, `DASHBOARD_HOST`, `DASHBOARD_PORT`,
 `SCRAPER_PASSPHRASE` (servers/Docker only).

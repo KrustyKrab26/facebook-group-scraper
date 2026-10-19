@@ -395,6 +395,10 @@
     <button type="button" class="secondary" data-goto="account">Log in again</button>
     <button type="button" class="secondary" id="checkpointAck">I understand</button>
   </div>
+  <div class="alert" id="privacyAlert" role="alert" hidden>
+    <span class="alert-text"><strong>Privacy</strong> <span id="privacyText"></span></span>
+    <button type="button" class="secondary" data-goto="settings">Open Settings</button>
+  </div>
   <div class="alert alert-info" id="loginAlert" role="status" hidden>
     <span class="alert-text"><strong id="loginAlertTitle">No saved Facebook login</strong>
       <span id="loginAlertText">Log in before scraping.</span></span>
@@ -868,6 +872,8 @@ async function refreshStats() {
   }
   if (state === "resting" && s.message) $("notice").textContent = s.message;
   renderLoginAlert(d);
+  $("privacyAlert").hidden = !d.privacy_warning;
+  $("privacyText").textContent = d.privacy_warning || "";
   if (!d.has_session) $("notice").textContent = "No saved login yet. Log in in the Account tab.";
   else if (s.message && !d.process_running) $("notice").textContent = s.message;
 

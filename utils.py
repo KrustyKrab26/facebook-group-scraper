@@ -105,6 +105,23 @@ def log_message(message):
         f.write(line + "\n")
 
 
+# Salts that come with the project or its examples: hashes made with them can
+# be reversed by anyone who tries names from the group's member list
+PLACEHOLDER_SALTS = {"", "change-me", "pick-any-random-string", "your-secret-salt"}
+
+
+def privacy_warnings():
+    """Reasons author names aren't properly protected (empty list = fine)."""
+    if not ANONYMIZE:
+        return ["Author names are NOT hashed: real names are being saved. Turn 'Hash author names' "
+                "back on unless the people in the group agreed to this."]
+    if HASH_SALT.strip() in PLACEHOLDER_SALTS or len(HASH_SALT.strip()) < 8:
+        return ["HASH_SALT is a placeholder or too short, so hashed names could be guessed. "
+                "Put a long random value in .env (e.g. python -c \"import secrets; print(secrets.token_hex(16))\") "
+                "before collecting data, and keep it private."]
+    return []
+
+
 def anonymize(name):
     if not name or not ANONYMIZE:
         return name

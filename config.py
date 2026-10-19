@@ -146,7 +146,10 @@ SCHEMA = {
     "HEADLESS": dict(type="bool", default=False, group="Browser", label="Hide browser window"),
 
     # Replace author names with a salted hash so the dataset holds no names
-    "ANONYMIZE": dict(type="bool", default=True, group="Privacy", label="Hash author names"),
+    "ANONYMIZE": dict(type="bool", default=True, group="Privacy",
+                      label="Hash author names before saving (keep this on)",
+                      note_when=[["ANONYMIZE", False, "Real names will be saved. Only do this with the "
+                                                      "people's consent."]]),
 }
 
 
