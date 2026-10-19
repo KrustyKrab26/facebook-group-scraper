@@ -12,8 +12,7 @@ exploring the data.
 > **Educational use only.** Automated collection from Facebook is restricted by
 > [Meta's Terms](https://www.facebook.com/terms.php) and by privacy law. Read
 > [Responsible use and the law](#responsible-use-and-the-law) before running it,
-> get your instructor's (and ideally the group admins') approval, keep runs
-> small, and never publish the raw data.
+> keep runs small, and never publish the raw data.
 >
 > **Chỉ dùng cho mục đích học tập.** Xem phần
 > [Sử dụng có trách nhiệm](#sử-dụng-có-trách-nhiệm-tiếng-việt) bằng tiếng Việt.
@@ -101,8 +100,7 @@ reduces risk by doing less. It does **not** try to hide that it is automated:
 
 ## Responsible use and the law
 
-This is not legal advice. Check the rules that apply to you with your
-instructor or your university.
+This is not legal advice; the rules that apply depend on where you are.
 
 - **Meta's Terms.** Facebook's Terms of Service do not allow collecting data by
   automated means without Meta's permission. Using this tool on Facebook may
@@ -114,13 +112,11 @@ instructor or your university.
   protection rules). In practice: have a clear purpose, collect only what that
   purpose needs, keep authors pseudonymous (hashing is on by default), store
   the data securely, and delete it when the course is over.
-- **Private groups.** Members posted for the group, not for research. Ask the
-  admins before collecting, and tell your instructor if the group is private.
+- **Private groups.** Members posted for the group, not for research; it's
+  good practice to ask the admins before collecting.
 - **Never publish the raw data** (posts, comments, hashes, cookies). Share
   aggregate results — counts, charts, anonymised quotes with permission —
   instead.
-- **Ethics approval.** If your work counts as research on people, your
-  university may require ethics (IRB) approval before you collect anything.
 
 ### If you need a large dataset
 
@@ -136,13 +132,12 @@ Don't make the scraper faster or harder to detect. Use a channel that allows it:
 4. **Use an existing, ethically collected public dataset**, or a site that
    allows scraping (e.g. `books.toscrape.com`) if the goal is learning the
    technique rather than this particular data.
-5. Talk to your instructor about a **smaller, sampled** dataset: a few hundred
-   posts collected slowly is usually enough for a course project.
+5. Work with a **smaller, sampled** dataset: a few hundred posts collected
+   slowly is usually enough for a learning project.
 
 ## Sử dụng có trách nhiệm (tiếng Việt)
 
-Đây không phải tư vấn pháp lý; hãy hỏi giảng viên hoặc trường về các quy định
-áp dụng cho bạn.
+Đây không phải tư vấn pháp lý; quy định cụ thể tuỳ nơi bạn sống và học.
 
 - **Điều khoản của Meta** không cho phép thu thập dữ liệu Facebook bằng công
   cụ tự động khi chưa được Meta cho phép. Dùng công cụ này có thể vi phạm điều
@@ -152,7 +147,7 @@ Don't make the scraper faster or harder to detect. Use a channel that allows it:
   Luật bảo vệ dữ liệu cá nhân (của Việt Nam, GDPR ở châu Âu...) có thể áp dụng:
   chỉ thu thập đúng phần cần cho mục đích học tập, giữ ẩn danh tác giả (đã bật
   sẵn), lưu trữ an toàn và xoá khi xong môn học.
-- **Nhóm riêng tư:** xin phép quản trị viên trước khi thu thập, và báo giảng viên.
+- **Nhóm riêng tư:** nên xin phép quản trị viên trước khi thu thập.
 - **Không công bố dữ liệu thô** (bài viết, bình luận, mã băm, cookie). Chỉ chia
   sẻ kết quả tổng hợp: số liệu, biểu đồ.
 - **Cần dữ liệu lớn?** Đừng tăng tốc hay che giấu scraper. Hãy dùng kênh chính
