@@ -1,6 +1,6 @@
 # Facebook Group Scraper — an educational project
 
-[![tests](https://github.com/OWNER/REPO/actions/workflows/tests.yml/badge.svg)](https://github.com/OWNER/REPO/actions/workflows/tests.yml)
+[![tests](https://github.com/KrustyKrab26/facebook-group-scraper/actions/workflows/tests.yml/badge.svg)](https://github.com/KrustyKrab26/facebook-group-scraper/actions/workflows/tests.yml)
 
 A small, careful scraper for **Facebook groups you are a member of**, built for
 a university multimedia / data course. It collects posts, a few comments per
@@ -176,8 +176,8 @@ Chrome or Microsoft Edge is recommended (used for logging in; Playwright's own
 Chromium is installed automatically for scraping).
 
 ```bash
-git clone https://github.com/OWNER/REPO.git
-cd REPO
+git clone https://github.com/KrustyKrab26/facebook-group-scraper.git
+cd facebook-group-scraper
 python start.py          # Windows: py start.py, or double-click start.bat
 ```
 
